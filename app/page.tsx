@@ -1108,6 +1108,17 @@ export default function Dashboard() {
       {(!isMobile || activeTab === 'overview') && (<>
 
       {/* ── Financial Health Score ──────────────────────────────────── */}
+      {!scoreData && !isDemo && hasData && (
+        <section style={SCORE_SECTION} className="pwa-section">
+          <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+            <p style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e3166', margin: '0 0 0.35rem' }}>Calculate your Financial Health Score</p>
+            <p style={{ fontSize: '0.85rem', color: '#5b7a99', margin: '0 0 1rem', lineHeight: 1.5 }}>
+              Tell us about your income, savings, and debt to get a personalized 0–100 score with actionable recommendations.
+            </p>
+            <a href="/onboarding" style={HERO_CTA}>Complete Your Profile</a>
+          </div>
+        </section>
+      )}
       {scoreData && (
         <section style={SCORE_SECTION} className="pwa-section">
           <div style={SCORE_LAYOUT}>
