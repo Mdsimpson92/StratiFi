@@ -776,6 +776,17 @@ export default function Dashboard() {
       )}
 
       {/* ════ ALLOCATION TAB ════════════════════════════════════════════ */}
+      {(!isMobile || activeTab === 'allocation') && !allocation && !isDemo && (
+        <section style={SCORE_SECTION} className="pwa-section">
+          <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+            <p style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e3166', margin: '0 0 0.35rem' }}>See your financial allocation</p>
+            <p style={{ fontSize: '0.85rem', color: '#5b7a99', margin: '0 0 1rem', lineHeight: 1.5 }}>
+              Complete your profile to see how your money is distributed across savings, retirement, and debt — with targets and progress tracking.
+            </p>
+            <a href="/onboarding" style={HERO_CTA}>Complete Your Profile</a>
+          </div>
+        </section>
+      )}
       {(!isMobile || activeTab === 'allocation') && allocation && (<>
       <section style={styles.section} className="pwa-section">
         <h2 style={styles.heading}>Financial Allocation</h2>

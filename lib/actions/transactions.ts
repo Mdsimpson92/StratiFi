@@ -136,7 +136,7 @@ export async function uploadTransactions(formData: FormData): Promise<UploadResu
 
   // ── Insert transactions ──
   const txCols = [
-    'user_id', 'file_id', 'date', 'description', 'merchant', 'amount',
+    'user_id', 'file_id', 'date', 'transaction_date', 'description', 'merchant', 'amount',
     'direction', 'category', 'is_recurring', 'recurring_confidence',
     'is_transfer', 'account_label', 'raw_data',
     'classification_confidence', 'classification_reason', 'normalized_merchant',
@@ -161,6 +161,7 @@ export async function uploadTransactions(formData: FormData): Promise<UploadResu
       userId,
       fileRecord.id,
       tx.date,
+      tx.date,        // also populate transaction_date for legacy queries
       tx.description,
       override?.merchant_name ?? tx.merchant,
       tx.amount,
