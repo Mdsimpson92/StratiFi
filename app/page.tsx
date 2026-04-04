@@ -115,6 +115,26 @@ interface CheckinData {
   recommendation: string | null
 }
 
+interface AllocationData {
+  net_worth:          number
+  liquid_savings:     number
+  retirement_savings: number
+  total_debt:         number
+  monthly_income:     number
+  monthly_expenses:   number
+  buckets: { label: string; value: number; target: number; color: string }[]
+}
+
+interface ScoreData {
+  overall:              number
+  emergency_fund_score: number
+  debt_ratio_score:     number
+  savings_rate_score:   number
+  label:                string
+  trend:                number
+  calculated_at:        string
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (n: number | null | undefined) =>
@@ -137,7 +157,10 @@ export default function Dashboard() {
   const [forecast, setForecast]               = useState<ForecastData | null>(null)
   const [alerts, setAlerts]                   = useState<Alert[]>([])
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
+  const [scoreData, setScoreData]             = useState<ScoreData | null>(null)
+  const [allocation, setAllocation]           = useState<AllocationData | null>(null)
   const [isPro, setIsPro]                     = useState(false)
+  const [isDemo, setIsDemo]                   = useState(false)
   const [paywallEnabled, setPaywallEnabled]   = useState(false)
   const [upgrading, setUpgrading]             = useState(false)
   const [linkToken, setLinkToken]             = useState<string | null>(null)
@@ -145,7 +168,7 @@ export default function Dashboard() {
   const [syncing, setSyncing]                 = useState(false)
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | 'unsupported'>('default')
   const [subscribing, setSubscribing]         = useState(false)
-  const [activeTab, setActiveTab]             = useState<'overview' | 'alerts' | 'subscriptions' | 'settings'>('overview')
+  const [activeTab, setActiveTab]             = useState<'overview' | 'alerts' | 'subscriptions' | 'allocation' | 'settings'>('overview')
   const [isMobile, setIsMobile]               = useState(false)
   const [showIntro, setShowIntro]             = useState(false)
   const [showDisableConfirm, setShowDisableConfirm] = useState(false)
@@ -295,18 +318,24 @@ export default function Dashboard() {
   const hasData           = insights.length > 0 || (cashflow?.by_month?.length ?? 0) > 0 || categories.length > 0
 
   // Adaptive source label — truthful to actual data origin
-  const sourceLabel = hasLinkedAccounts
-    ? 'Based on your linked account activity.'
-    : hasData
-      ? 'Based on your uploaded transaction data.'
-      : ''
+  const sourceLabel = isDemo
+    ? 'Simulated data \u2014 upload transactions or connect a bank to see your real finances.'
+    : hasLinkedAccounts
+      ? 'Based on your linked account activity.'
+      : hasData
+        ? 'Based on your uploaded transaction data.'
+        : ''
+
+  // Demo users see all features unlocked (like Pro) so they experience the full product.
+  // Once they add real data, they drop to free unless they pay for Pro.
+  const canAccessPro = isPro || isDemo
 
   // ── Conversion helpers ────────────────────────────────────────────────────────
   const MIN_PROMPT_GAP = 90_000
   const isElevated = shownTypes.length > 0
 
   function canShow(type: string): boolean {
-    if (isPro || !paywallEnabled) return false
+    if (canAccessPro || !paywallEnabled) return false
     return !shownTypes.includes(type)
   }
 
@@ -327,29 +356,29 @@ export default function Dashboard() {
   useEffect(() => {
     if (prevTabRef.current === activeTab) return
     prevTabRef.current = activeTab
-    if (!paywallEnabled || isPro || !isMobile) return
+    if (!paywallEnabled || canAccessPro || !isMobile) return
     if (activeTab === 'overview') setRecViewCount(prev => prev + 1)
-  }, [activeTab, paywallEnabled, isPro, isMobile])
+  }, [activeTab, paywallEnabled, isPro, isDemo, isMobile])
 
   // Fire once when the locked teaser card first becomes visible
   useEffect(() => {
     if (teaserTrackedRef.current) return
-    if (!paywallEnabled || isPro || recommendations.length <= 1) return
+    if (!paywallEnabled || canAccessPro || recommendations.length <= 1) return
     teaserTrackedRef.current = true
     track(EVENTS.RECOMMENDATIONS_TEASER_VIEWED, { user_plan: 'free', paywall_enabled: true, rec_count: recommendations.length })
-  }, [paywallEnabled, isPro, recommendations])
+  }, [paywallEnabled, isPro, isDemo, recommendations])
 
   // On second overview visit, show end-of-recs card immediately (skip the 30s wait)
   useEffect(() => {
-    if (recViewCount < 2 || isPro || !paywallEnabled || showEndRecsCard) return
+    if (recViewCount < 2 || canAccessPro || !paywallEnabled || showEndRecsCard) return
     setShowEndRecsCard(true)
     setLastPromptAt(Date.now())
     setShownTypes(prev => prev.includes('end_recs') ? prev : [...prev, 'end_recs'])
-  }, [recViewCount, isPro, paywallEnabled, showEndRecsCard])
+  }, [recViewCount, isPro, isDemo, paywallEnabled, showEndRecsCard])
 
   // After 30s on overview, show end-of-recs card (once per session)
   useEffect(() => {
-    if (isPro || !paywallEnabled || showEndRecsCard) return
+    if (canAccessPro || !paywallEnabled || showEndRecsCard) return
     if (isMobile && activeTab !== 'overview') return
     // Restart the timer whenever a prompt was recently shown (respects the gap)
     const wait = lastPromptAt !== null
@@ -361,7 +390,7 @@ export default function Dashboard() {
       setShownTypes(prev => prev.includes('end_recs') ? prev : [...prev, 'end_recs'])
     }, wait)
     return () => clearTimeout(timer)
-  }, [activeTab, isPro, paywallEnabled, showEndRecsCard, isMobile, lastPromptAt])
+  }, [activeTab, isPro, isDemo, paywallEnabled, showEndRecsCard, isMobile, lastPromptAt])
 
   async function confirmDisableNotifications() {
     setShowDisableConfirm(false)
@@ -457,7 +486,7 @@ export default function Dashboard() {
     const date    = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     return {
       // Only include safe-to-spend for Pro users — free users see it blurred
-      safe:    (isPro || !paywallEnabled) && safeRec ? safeRec.suggested_action : null,
+      safe:    (canAccessPro || !paywallEnabled) && safeRec ? safeRec.suggested_action : null,
       // Recommendation title only — no dollar amounts from suggested_action
       rec:     topRec?.title ?? null,
       // First insight text — advisory summary, not raw transaction data
@@ -559,11 +588,15 @@ export default function Dashboard() {
       fetch('/api/alerts').then(r            => r.json()),
       fetch('/api/recommendations').then(r    => r.json()),
       fetch('/api/stripe/subscription').then(r => r.json()),
+      fetch('/api/score').then(r               => r.json()),
+      fetch('/api/allocation').then(r          => r.json()),
     ])
-      .then(([ins, cash, pat, ano, spend, plaid, subs, fc, alrt, recs, stripe]) => {
+      .then(([ins, cash, pat, ano, spend, plaid, subs, fc, alrt, recs, stripe, sc, alloc]) => {
         const resolvedPro      = stripe?.is_pro ?? false
         const resolvedPaywall  = stripe?.paywall_enabled ?? false
+        const resolvedDemo     = stripe?.is_demo ?? false
         setIsPro(resolvedPro)
+        setIsDemo(resolvedDemo)
         setPaywallEnabled(resolvedPaywall)
         if (resolvedPro && resolvedPaywall) {
           track(EVENTS.PRO_STATE_CONFIRMED, { user_plan: 'pro', paywall_enabled: true })
@@ -578,6 +611,8 @@ export default function Dashboard() {
         setForecast(fc.upcoming_charges !== undefined ? fc : null)
         setAlerts(Array.isArray(alrt) ? alrt : [])
         setRecommendations(recs.recommendations ?? [])
+        setScoreData(sc?.score ?? null)
+        setAllocation(alloc?.allocation ?? null)
         setDataLoadedAt(new Date())
       })
       .catch(() => setError('Failed to load dashboard data.'))
@@ -618,12 +653,12 @@ export default function Dashboard() {
         <h1 style={HERO_HEADLINE}>{firstName ? `Hello, ${firstName}` : 'Know exactly what you can spend today'}</h1>
         <p style={HERO_SUB}>No guesswork. No budgeting. Just decisions.</p>
 
-        {!isPro && (
+        {!canAccessPro && (
           <button style={HERO_CTA} onClick={() => handleUpgrade()} disabled={upgrading}>
             {upgrading ? 'Redirecting…' : 'Upgrade to Pro'}
           </button>
         )}
-        {!hasData && (
+        {!hasData && !isDemo && (
           <button
             style={HERO_CTA}
             onClick={() => setActiveTab('settings')}
@@ -649,7 +684,7 @@ export default function Dashboard() {
           {!isMobile && <span style={{ marginLeft: '0.35rem' }}>Share</span>}
         </button>
 
-        {!isMobile && (
+        {(
           <button
             style={activeTab === 'settings' ? styles.gearBtnActive : styles.gearBtn}
             onClick={() => setActiveTab(activeTab === 'settings' ? 'overview' : 'settings')}
@@ -661,7 +696,7 @@ export default function Dashboard() {
             </svg>
           </button>
         )}
-        {isPro && (
+        {isPro && !isDemo && (
           <span style={styles.proBadge}>Pro</span>
         )}
       </div>
@@ -722,9 +757,104 @@ export default function Dashboard() {
         </div>
       )}
 
-      {!isPro && ((!isMobile && activeTab !== 'settings') || activeTab === 'overview') && (
+      {isDemo && (
+        <div style={DEMO_BANNER}>
+          <div style={DEMO_BANNER_TEXT}>
+            <strong>Demo Mode</strong> &mdash; You&rsquo;re viewing simulated financial data.
+          </div>
+          <div style={DEMO_BANNER_ACTIONS}>
+            <a href="/transactions" style={DEMO_BANNER_CTA}>Upload Transactions</a>
+            <button style={DEMO_BANNER_LINK} onClick={() => { setActiveTab('settings'); handleConnectBank() }}>
+              Connect Bank
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!isPro && (
         <UpgradeCard onUpgrade={handleUpgrade} upgrading={upgrading} elevated={isElevated} source="overview" />
       )}
+
+      {/* ════ ALLOCATION TAB ════════════════════════════════════════════ */}
+      {(!isMobile || activeTab === 'allocation') && allocation && (<>
+      <section style={styles.section} className="pwa-section">
+        <h2 style={styles.heading}>Financial Allocation</h2>
+        <p style={SOURCE_NOTE}>Where your money sits today vs where it should be.</p>
+
+        {/* Net worth header */}
+        <div style={ALLOC_NET_WORTH}>
+          <span style={ALLOC_NW_LABEL}>Net Worth</span>
+          <span style={ALLOC_NW_VALUE}>{fmt(allocation.net_worth)}</span>
+        </div>
+
+        {/* Buckets: current vs target */}
+        {canAccessPro ? (
+          <div style={ALLOC_BUCKETS}>
+            {allocation.buckets.map(b => {
+              const isDebt = b.label === 'Debt'
+              const pct = b.target > 0 ? Math.min(100, (b.value / b.target) * 100) : (isDebt && b.value > 0 ? 100 : 100)
+              const status = isDebt
+                ? (b.value === 0 ? 'On target' : `${fmt(b.value)} to pay off`)
+                : (b.value >= b.target ? 'On target' : `${fmt(b.target - b.value)} to go`)
+              const statusColor = (isDebt ? b.value === 0 : b.value >= b.target) ? '#059669' : '#d97706'
+              return (
+                <div key={b.label} style={ALLOC_BUCKET}>
+                  <div style={ALLOC_BUCKET_HEADER}>
+                    <span style={ALLOC_BUCKET_LABEL}>{b.label}</span>
+                    <span style={{ ...ALLOC_BUCKET_STATUS, color: statusColor }}>{status}</span>
+                  </div>
+                  <div style={ALLOC_BUCKET_VALUES}>
+                    <span style={ALLOC_BUCKET_CURRENT}>{fmt(b.value)}</span>
+                    {!isDebt && <span style={ALLOC_BUCKET_TARGET}>Target: {fmt(b.target)}</span>}
+                  </div>
+                  <div style={ALLOC_BAR_BG}>
+                    <div style={{
+                      ...ALLOC_BAR_FILL,
+                      width: `${Math.min(100, pct)}%`,
+                      background: isDebt
+                        ? (b.value === 0 ? '#059669' : b.color)
+                        : (b.value >= b.target ? '#059669' : b.color),
+                    }} />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div style={styles.lockedCard}>
+            <span style={styles.lockIcon}>{'\uD83D\uDD12'}</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: '0 0 0.15rem', fontWeight: 700, fontSize: '0.88rem', color: '#1e3166' }}>
+                Allocation breakdown is Pro
+              </p>
+              <p style={{ margin: 0, fontSize: '0.78rem', color: '#6b7280' }}>
+                See how your money is distributed across emergency fund, retirement, and debt — with targets and progress tracking.
+              </p>
+            </div>
+            <LockedUpgradeBtn upgrading={upgrading} onClick={() => handleUpgrade()} />
+          </div>
+        )}
+      </section>
+
+      {/* Monthly flow summary */}
+      {canAccessPro && (
+      <section style={styles.section} className="pwa-section">
+        <h2 style={styles.heading}>Monthly Flow</h2>
+        <div style={styles.statRow} className="pwa-stat-row">
+          <Stat label="Income"    value={fmt(allocation.monthly_income)}   color="#0d7878" />
+          <Stat label="Expenses"  value={fmt(allocation.monthly_expenses)} color="#dc2626" />
+          <Stat label="Free Cash" value={fmt(allocation.monthly_income - allocation.monthly_expenses)} color={allocation.monthly_income - allocation.monthly_expenses >= 0 ? '#0d7878' : '#dc2626'} />
+        </div>
+        <p style={ALLOC_GUIDANCE}>
+          {allocation.monthly_income - allocation.monthly_expenses > 500
+            ? 'You have strong free cash flow. Direct surplus toward your weakest allocation bucket above.'
+            : allocation.monthly_income - allocation.monthly_expenses > 0
+              ? 'Positive cash flow, but tight. Focus on building your emergency fund before other goals.'
+              : 'You\u2019re spending more than you earn. Address this before allocating to savings or investments.'}
+        </p>
+      </section>
+      )}
+      </>)}
 
       {/* ════ SETTINGS TAB ═══════════════════════════════════════════════ */}
       {activeTab === 'settings' && (<>
@@ -793,20 +923,15 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* The top UpgradeCard hides when settings is active (any viewport).
-          Show the settings-copy card here for both mobile and desktop. */}
-      {!isPro && (
-        <UpgradeCard onUpgrade={handleUpgrade} upgrading={upgrading} elevated={isElevated} source="settings" />
-      )}
 
       <section style={styles.section} className="pwa-section">
         <h2 style={styles.heading}>Account</h2>
-        {isPro && (
+        {isPro && !isDemo && (
           <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', color: '#0d7878', fontWeight: 600 }}>
             ✓ Pro plan active
           </p>
         )}
-        {!isPro && (
+        {!canAccessPro && (
           <div style={{ marginBottom: '1rem' }}>
             <button
               style={restoringAccess ? styles.btnDisabled : styles.btnOutline}
@@ -870,9 +995,9 @@ export default function Dashboard() {
                   {alerts.filter(a => !a.dismissed && !a.read).length}
                 </span>
               )}
-              {paywallEnabled && <span style={styles.proLabel}>Pro</span>}
+              {paywallEnabled && !canAccessPro && <span style={styles.proLabel}>Pro</span>}
             </span>
-            {(!paywallEnabled || isPro) && notifPermission !== 'granted' && notifPermission !== 'unsupported' && notifPermission !== 'denied' && (
+            {(!paywallEnabled || canAccessPro) && notifPermission !== 'granted' && notifPermission !== 'unsupported' && notifPermission !== 'denied' && (
               <button
                 style={subscribing ? styles.btnDisabled : styles.notifEnableBtn}
                 onClick={handleEnableNotifications}
@@ -881,7 +1006,7 @@ export default function Dashboard() {
                 {subscribing ? 'Enabling…' : '🔔 Enable alerts'}
               </button>
             )}
-            {(!paywallEnabled || isPro) && notifPermission === 'granted' && (
+            {(!paywallEnabled || canAccessPro) && notifPermission === 'granted' && (
               <button
                 style={subscribing ? styles.btnDisabled : styles.notifDisableBtn}
                 onClick={() => setShowDisableConfirm(true)}
@@ -890,7 +1015,7 @@ export default function Dashboard() {
                 {subscribing ? 'Disabling…' : '🔔 Disable alerts'}
               </button>
             )}
-            {!isPro && (
+            {!canAccessPro && (
               <span
                 style={{ ...styles.lockedNotifLabel, cursor: 'pointer' }}
                 onClick={() => {
@@ -913,7 +1038,7 @@ export default function Dashboard() {
             />
           )}
           {/* iOS PWA guide — push requires Home Screen installation on iPhone */}
-          {(!paywallEnabled || isPro) && notifPermission !== 'granted' && isIOS && !isPWA && (
+          {(!paywallEnabled || canAccessPro) && notifPermission !== 'granted' && isIOS && !isPWA && (
             <div style={{ marginBottom: '0.9rem', padding: '0.65rem 0.8rem', background: '#fff8e6', borderRadius: 8, border: '1px solid #f0d080' }}>
               <p style={{ margin: 0, fontSize: '0.82rem', color: '#7a5800', lineHeight: 1.5 }}>
                 <strong>iPhone users:</strong> Push alerts require the app to be installed. In Safari, tap the Share button then <em>Add to Home Screen</em>, then reopen from your Home Screen to enable alerts.
@@ -934,7 +1059,8 @@ export default function Dashboard() {
             </div>
           )}
           <div style={styles.alertList}>
-            {alerts.filter(a => !a.dismissed).map(a => (
+            {canAccessPro ? (
+              alerts.filter(a => !a.dismissed).map(a => (
               <div
                 key={a.alert_key}
                 style={{ ...ALERT_ITEM_STYLES[a.severity], ...(a.read ? styles.alertReadOverlay : {}) }}
@@ -959,7 +1085,21 @@ export default function Dashboard() {
                   </button>
                 </span>
               </div>
-            ))}
+            ))
+            ) : (
+              <div style={styles.lockedCard}>
+                <span style={styles.lockIcon}>{'\uD83D\uDD12'}</span>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: '0 0 0.15rem', fontWeight: 700, fontSize: '0.88rem', color: '#1e3166' }}>
+                    {alerts.filter(a => !a.dismissed).length} alert{alerts.filter(a => !a.dismissed).length !== 1 ? 's' : ''} detected
+                  </p>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#6b7280' }}>
+                    Upgrade to Pro to see alert details, get push notifications, and act before problems land.
+                  </p>
+                </div>
+                <LockedUpgradeBtn upgrading={upgrading} onClick={() => handleUpgrade()} />
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -967,9 +1107,63 @@ export default function Dashboard() {
       {/* ════ OVERVIEW TAB ═══════════════════════════════════════════════ */}
       {(!isMobile || activeTab === 'overview') && (<>
 
+      {/* ── Financial Health Score ──────────────────────────────────── */}
+      {scoreData && (
+        <section style={SCORE_SECTION} className="pwa-section">
+          <div style={SCORE_LAYOUT}>
+            <div style={SCORE_GAUGE_WRAP}>
+              <svg viewBox="0 0 120 120" width={140} height={140}>
+                <circle cx="60" cy="60" r={52} fill="none" stroke="#e5e7eb" strokeWidth="9" />
+                <circle
+                  cx="60" cy="60" r={52}
+                  fill="none"
+                  stroke={scoreData.overall >= 65 ? '#2ab9b0' : scoreData.overall >= 35 ? '#f59e0b' : '#ef4444'}
+                  strokeWidth="9"
+                  strokeDasharray={2 * Math.PI * 52}
+                  strokeDashoffset={2 * Math.PI * 52 * (1 - scoreData.overall / 100)}
+                  strokeLinecap="round"
+                  transform="rotate(-90 60 60)"
+                  style={{ transition: 'stroke-dashoffset 0.8s ease-out' }}
+                />
+              </svg>
+              <div style={SCORE_CENTER}>
+                <span style={SCORE_NUMBER}>{scoreData.overall}</span>
+              </div>
+            </div>
+            <div style={SCORE_DETAIL}>
+              <div style={SCORE_LABEL_ROW}>
+                <span style={SCORE_LABEL_TEXT}>{scoreData.label}</span>
+                {scoreData.trend !== 0 && (
+                  <span style={{ ...SCORE_TREND, color: scoreData.trend > 0 ? '#059669' : '#dc2626' }}>
+                    {scoreData.trend > 0 ? '\u25B2' : '\u25BC'} {Math.abs(scoreData.trend)} pts
+                  </span>
+                )}
+              </div>
+              <p style={SCORE_SUBTITLE}>Financial Health Score</p>
+              {canAccessPro ? (
+                <div style={SCORE_FACTORS}>
+                  <ScoreFactor label="Emergency Fund" value={scoreData.emergency_fund_score} />
+                  <ScoreFactor label="Debt Ratio" value={scoreData.debt_ratio_score} />
+                  <ScoreFactor label="Savings Rate" value={scoreData.savings_rate_score} />
+                </div>
+              ) : (
+                <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: '#8aaabb' }}>Upgrade to Pro to see your factor breakdown.</p>
+              )}
+            </div>
+          </div>
+          {canAccessPro && (
+            <div style={SCORE_EXPLAINER}>
+              <p style={SCORE_EXPLAINER_TEXT}>
+                Your score is calculated from 6 measurable factors: emergency fund coverage (25%), debt-to-income ratio (20%), monthly cash flow margin (20%), savings rate (15%), total debt load (10%), and retirement readiness (10%). Each factor is scored 0–100 based on your real financial data, then weighted to produce your overall score. Higher is better.
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
       {/* ── Proof label ─────────────────────────────────────────────── */}
       {hasData ? (
-        <p style={PROOF_LABEL}>Your plan, in real time</p>
+        <p style={PROOF_LABEL}>{isDemo ? 'Sample data \u2014 connect your accounts to personalize' : 'Your plan, in real time'}</p>
       ) : (
         <div style={EMPTY_SETUP}>
           <p style={EMPTY_SETUP_TEXT}>Add your balance, income, and expenses to see your plan.</p>
@@ -1012,7 +1206,7 @@ export default function Dashboard() {
                               }, 80)
                             }}
                           >
-                            {ins.tab === 'subscriptions' ? 'Go to Subscriptions →' : 'See the data →'}
+                            {ins.tab === 'subscriptions' ? 'Go to Expenses →' : 'See the data →'}
                           </button>
                         )}
                       </div>
@@ -1042,7 +1236,7 @@ export default function Dashboard() {
               <Stat label="Total Expenses" value={fmt(cashflow.total_outflow)} color="#dc2626" />
               <Stat label="Net"            value={fmt(cashflow.net)}           color={cashflow.net >= 0 ? '#0d7878' : '#dc2626'} />
             </div>
-            {cashflow?.by_month?.length > 0 && (
+            {cashflow?.by_month?.length > 0 && canAccessPro && (
               <div className="table-scroll-wrap"><div className="table-scroll"><table style={styles.table}>
                 <thead>
                   <tr>
@@ -1064,93 +1258,54 @@ export default function Dashboard() {
                 </tbody>
               </table></div></div>
             )}
+            {cashflow?.by_month?.length > 0 && !canAccessPro && (
+              <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem', color: '#8aaabb' }}>Upgrade to Pro to see monthly breakdown.</p>
+            )}
           </>
         )}
       </section>
 
-      {/* ════ RECOMMENDATIONS ════════════════════════════════════════════ */}
+      {/* ════ TOP 3 ACTIONS ════════════════════════════════════════════ */}
       {recommendations.length > 0 && (!isMobile || activeTab === 'overview') && (
       <section style={styles.section} className="pwa-section">
         <h2 style={styles.heading}>
-          What should I do?
-          {paywallEnabled && <span style={styles.proLabel}>Pro</span>}
+          Top Actions
+          {paywallEnabled && !canAccessPro && <span style={styles.proLabel}>Pro</span>}
         </h2>
         <p style={SOURCE_NOTE}>
-          Based on your financial activity over the past 90 days. Not financial advice.
+          Ranked by impact. Based on your spending, bills, and financial profile.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {/* Free users see the first recommendation; pro users see top 3 */}
-          {recommendations.slice(0, (!paywallEnabled || isPro) ? 3 : 1).map(rec => (
+          {recommendations.slice(0, canAccessPro ? 3 : 1).map((rec, idx) => (
             <div key={rec.id} style={REC_CARD_STYLES[rec.priority]}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                <span style={{ fontWeight: 700, fontSize: '0.95rem', lineHeight: 1.3 }}>{rec.title}</span>
+                <span style={{ fontWeight: 700, fontSize: '0.95rem', lineHeight: 1.3 }}>
+                  <span style={ACTION_NUMBER}>{idx + 1}</span> {rec.title}
+                </span>
                 <span style={REC_BADGE_STYLES[rec.priority]}>{rec.priority}</span>
               </div>
               <p style={{ margin: '0 0 0.4rem', fontSize: '0.85rem', color: '#374151', lineHeight: 1.5 }}>{rec.explanation}</p>
-              {/* Safe to spend amount: blur for free users — tap to trigger contextual prompt */}
-              {rec.type === 'safe_to_spend_today' && !isPro ? (
-                <p
-                  style={{ margin: 0, fontSize: '0.82rem', fontWeight: 600, color: REC_ACTION_COLORS[rec.priority], filter: 'blur(4px)', userSelect: 'none', cursor: 'pointer' }}
-                  onClick={() => triggerContextual('safe_to_spend', 'This is how much you can spend today without touching rent, bills, or savings. It recalculates from your real data, every day.')}
-                >→ {rec.suggested_action}</p>
-              ) : (
-                <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 600, color: REC_ACTION_COLORS[rec.priority] }}>→ {rec.suggested_action}</p>
-              )}
-              {rec.type === 'safe_to_spend_today' && (
-                <div style={{ marginTop: '0.55rem' }}>
-                  <button
-                    style={CALC_TOGGLE}
-                    onClick={() => setShowSafeCalc(v => !v)}
-                  >
-                    How this is calculated {showSafeCalc ? '▴' : '▾'}
-                  </button>
-                  {showSafeCalc && (
-                    <p style={CALC_BODY}>
-                      We project your 30-day surplus from your income, bills, and recent spending patterns.
-                      Safe to spend = 10% of that surplus ÷ 7 days — a conservative daily budget.
-                      Recalculates each time your bank syncs.
-                    </p>
-                  )}
-                  <p style={{ ...DISCLAIMER_TEXT, marginTop: '0.45rem' }}>
-                    For informational purposes only. Not financial advice.
-                  </p>
-                </div>
-              )}
+              <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 600, color: REC_ACTION_COLORS[rec.priority] }}>{'\u2192'} {rec.suggested_action}</p>
               {rec.savings_amount != null && rec.savings_amount > 0 && (
-                <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#6b7280' }}>
-                  Potential savings: {fmt(rec.savings_amount)}/mo
+                <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#059669', fontWeight: 600 }}>
+                  Potential savings: {fmt(rec.savings_amount)}/mo ({fmt(rec.savings_amount * 12)}/yr)
                 </p>
               )}
             </div>
           ))}
-          {/* Locked teaser for free users when more recommendations exist */}
-          {!isPro && recommendations.length > 1 && (
+          {!canAccessPro && recommendations.length > 1 && (
             <div style={styles.lockedCard}>
-              <span style={styles.lockIcon}>🔒</span>
+              <span style={styles.lockIcon}>{'\uD83D\uDD12'}</span>
               <div style={{ flex: 1 }}>
                 <p style={{ margin: '0 0 0.15rem', fontWeight: 700, fontSize: '0.88rem', color: '#1e3166' }}>
-                  {recommendations.length - 1} more recommendation{recommendations.length - 1 > 1 ? 's' : ''} ready
+                  {recommendations.length - 1} more action{recommendations.length - 1 > 1 ? 's' : ''} ready
                 </p>
                 <p style={{ margin: 0, fontSize: '0.78rem', color: '#6b7280' }}>
-                  Your highest priority is showing. The rest of your action plan is behind Pro — upgrade to see what to do next.
+                  Upgrade to Pro to see your full ranked action plan.
                 </p>
               </div>
               <LockedUpgradeBtn upgrading={upgrading} onClick={() => handleUpgrade()} />
             </div>
-          )}
-          {/* Contextual prompt: fires when user taps blurred safe-to-spend */}
-          {contextualPrompt?.type === 'safe_to_spend' && (
-            <ContextualPromptCard
-              message={contextualPrompt.message}
-              onUpgrade={handleUpgrade}
-              upgrading={upgrading}
-              onDismiss={() => setContextualPrompt(null)}
-              promptType="safe_to_spend"
-            />
-          )}
-          {/* End-of-recs card: fires after 30s on overview, or on second overview visit */}
-          {showEndRecsCard && !isPro && (
-            <UpgradeCard onUpgrade={handleUpgrade} upgrading={upgrading} elevated source="end_recs" />
           )}
         </div>
       </section>
@@ -1180,7 +1335,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── CTA reinforcement (free users) ─────────────────────────────── */}
-      {!isPro && (
+      {!canAccessPro && (
         <div style={CTA_REINFORCE}>
           <p style={CTA_REINFORCE_TEXT}>Stop guessing. Start deciding.</p>
           <button style={HERO_CTA} onClick={() => handleUpgrade()} disabled={upgrading}>
@@ -1193,7 +1348,7 @@ export default function Dashboard() {
       <section style={styles.section} className="pwa-section">
         <h2 style={styles.heading}>
           30-Day Forecast
-          {paywallEnabled && <span style={styles.proLabel}>Pro</span>}
+          {paywallEnabled && !canAccessPro && <span style={styles.proLabel}>Pro</span>}
         </h2>
         <p style={SOURCE_NOTE}>
           Projected from your recurring charges and income patterns. Assumes bills continue at their current amount and frequency.
@@ -1208,7 +1363,7 @@ export default function Dashboard() {
               <Stat label="Projected Net"     value={fmt(forecast.projected_net_30d)}    color={forecast.projected_net_30d >= 0 ? '#0d7878' : '#dc2626'} />
             </div>
 
-            {!isPro ? (
+            {!canAccessPro ? (
               <div style={styles.lockedCard}>
                 <span style={styles.lockIcon}>🔒</span>
                 <div style={{ flex: 1 }}>
@@ -1261,6 +1416,10 @@ export default function Dashboard() {
         )}
       </section>
 
+      </>)}
+      {/* ════ EXPENSES TAB ═══════════════════════════════════════════════ */}
+      {(!isMobile || activeTab === 'subscriptions') && (<>
+
       {/* ── Spending Breakdown ───────────────────────────────────────────── */}
       <section id="section-categories" style={styles.section} className="pwa-section">
         <h2 style={styles.heading}>Spending by Category</h2>
@@ -1269,9 +1428,8 @@ export default function Dashboard() {
           ? <p style={styles.empty}>No category data yet.</p>
           : (
             <div style={styles.pieWrapper} className="pwa-pie-wrapper">
-              <div style={{ width: isMobile ? '100%' : 280, minHeight: isMobile ? 220 : 280 }}>
-              <ResponsiveContainer width="100%" height={isMobile ? 220 : 280}>
-                <PieChart>
+              <div>
+                <PieChart width={isMobile ? 280 : 280} height={isMobile ? 220 : 280}>
                   <Pie
                     data={categories}
                     dataKey="total_spent"
@@ -1289,14 +1447,13 @@ export default function Dashboard() {
                   </Pie>
                   <Tooltip formatter={(v) => fmt(Number(v))} />
                 </PieChart>
-              </ResponsiveContainer>
               </div>
 
               <div style={styles.pieDetail}>
                 {selectedCategory ? (
-                  !isPro ? (
+                  !canAccessPro ? (
                     <div style={styles.lockedCard}>
-                      <span style={styles.lockIcon}>🔒</span>
+                      <span style={styles.lockIcon}>{'\uD83D\uDD12'}</span>
                       <div style={{ flex: 1 }}>
                         <p style={{ margin: '0 0 0.15rem', fontWeight: 700, fontSize: '0.88rem', color: '#1e3166' }}>
                           Category detail is Pro
@@ -1317,7 +1474,7 @@ export default function Dashboard() {
                   )
                 ) : (
                   <p style={styles.empty}>
-                    {!isPro ? 'Upgrade to Pro to see a full breakdown for any category.' : 'Click a slice to see details.'}
+                    {!canAccessPro ? 'Upgrade to Pro to see a full breakdown for any category.' : 'Click a slice to see details.'}
                   </p>
                 )}
               </div>
@@ -1326,9 +1483,7 @@ export default function Dashboard() {
         }
       </section>
 
-      </>)}
-      {/* ════ SUBSCRIPTIONS TAB ══════════════════════════════════════════ */}
-      {(!isMobile || activeTab === 'subscriptions') && (<>
+      {/* ── Subscriptions & Waste ────────────────────────────────────────── */}
       <section id="section-subscriptions" style={styles.section} className="pwa-section">
         <h2 style={styles.heading}>Subscriptions & Money Leaks</h2>
         <p style={SOURCE_NOTE}>Detected from recurring transaction patterns. Some charges may be missing or mislabeled.</p>
@@ -1347,9 +1502,9 @@ export default function Dashboard() {
               <div style={styles.wasteBox}>
                 <div style={styles.wasteTitle}>
                   ⚠ {subData.waste_flags.length} potential waste detected
-                  {!isPro && <span style={{ ...styles.proLabel, marginLeft: '0.5rem', verticalAlign: 'middle' }}>Pro</span>}
+                  {!canAccessPro && <span style={{ ...styles.proLabel, marginLeft: '0.5rem', verticalAlign: 'middle' }}>Pro</span>}
                 </div>
-                {!isPro ? (
+                {!canAccessPro ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.4rem', gap: '0.75rem' }}>
                     <p style={{ margin: 0, fontSize: '0.8rem', color: '#92400e', lineHeight: 1.45 }}>
                       Upgrade to see which ones — and why they're flagged.
@@ -1457,7 +1612,7 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(!isPro ? anomalies.slice(0, 2) : anomalies).map(a => (
+                  {(!canAccessPro ? anomalies.slice(0, 2) : anomalies).map(a => (
                     <tr key={a.id}>
                       <td style={styles.td}>{a.transaction_date ?? '—'}</td>
                       <td style={styles.td}><span className="td-truncate" style={{ display: 'block' }}>{a.normalized_merchant}</span></td>
@@ -1468,7 +1623,7 @@ export default function Dashboard() {
                   ))}
                 </tbody>
               </table></div></div>
-              {!isPro && anomalies.length > 2 && (
+              {!canAccessPro && anomalies.length > 2 && (
                 <div style={{ ...styles.lockedCard, marginTop: '0.75rem' }}>
                   <span style={styles.lockIcon}>🔒</span>
                   <div style={{ flex: 1 }}>
@@ -1604,15 +1759,15 @@ const NAV_TABS = [
   },
   {
     id:    'subscriptions',
-    label: 'Subs',
-    // Credit card icon
-    icon:  'M1 4h22v4H1z M1 10h22v10a2 2 0 01-2 2H3a2 2 0 01-2-2V10z M6 16h4',
+    label: 'Expenses',
+    // Wallet/spending icon
+    icon:  'M21 4H3a2 2 0 00-2 2v12a2 2 0 002 2h18a2 2 0 002-2V6a2 2 0 00-2-2zM1 10h22M7 15h2M12 15h2',
   },
   {
-    id:    'settings',
-    label: 'Settings',
-    // Sliders icon
-    icon:  'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
+    id:    'allocation',
+    label: 'Allocation',
+    // Pie/allocation icon
+    icon:  'M21 12a9 9 0 11-9-9v9h9zM21 12a9 9 0 01-9 9V12h9z',
   },
 ]
 
@@ -1965,12 +2120,14 @@ const BEST_VALUE_BADGE: React.CSSProperties = {
 // ─── Hero ─────────────────────────────────────────────────────────────────────
 
 const HERO_HEADLINE: React.CSSProperties = {
-  fontSize:   'clamp(1.25rem, 5vw, 1.7rem)',
-  fontWeight: 800,
-  color:      '#1e3166',
-  lineHeight: 1.2,
-  margin:     '0.25rem 0 0.4rem',
-  maxWidth:   '100%',
+  fontSize:     'clamp(1.25rem, 5vw, 1.7rem)',
+  fontWeight:   800,
+  color:        '#1e3166',
+  lineHeight:   1.2,
+  margin:       '0.25rem 0 0.4rem',
+  maxWidth:     '100%',
+  overflowWrap: 'break-word',
+  wordBreak:    'break-word',
 }
 
 const HERO_SUB: React.CSSProperties = {
@@ -2123,6 +2280,190 @@ const SNAPSHOT_BTN_OUTLINE: React.CSSProperties = {
   background: 'transparent', border: '1.5px solid #2ab9b0',
   color: '#2ab9b0', borderRadius: 8,
   fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+}
+
+// ─── Demo mode banner ─────────────────────────────────────────────────────────
+
+// ─── Financial Health Score ───────────────────────────────────────────────────
+
+const SCORE_SECTION: React.CSSProperties = {
+  background: '#ffffff', borderRadius: 12, padding: '1.5rem',
+  marginBottom: '1.25rem',
+  boxShadow: '0 1px 3px rgba(30,49,102,0.07), 0 1px 2px rgba(30,49,102,0.04)',
+  border: '1px solid #daeef2',
+}
+
+const SCORE_LAYOUT: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap',
+}
+
+const SCORE_GAUGE_WRAP: React.CSSProperties = {
+  position: 'relative', width: 140, height: 140, flexShrink: 0,
+}
+
+const SCORE_CENTER: React.CSSProperties = {
+  position: 'absolute', inset: 0,
+  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.15rem',
+}
+
+const SCORE_NUMBER: React.CSSProperties = {
+  fontSize: '2.25rem', fontWeight: 800, color: '#1e3166', lineHeight: 1,
+}
+
+const SCORE_OF: React.CSSProperties = {
+  fontSize: '0.85rem', fontWeight: 600, color: '#8aaabb', alignSelf: 'flex-end', paddingBottom: '0.2rem',
+}
+
+const SCORE_DETAIL: React.CSSProperties = {
+  flex: 1, minWidth: 180,
+}
+
+const SCORE_LABEL_ROW: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.15rem',
+}
+
+const SCORE_LABEL_TEXT: React.CSSProperties = {
+  fontSize: '1.15rem', fontWeight: 700, color: '#1e3166',
+}
+
+const SCORE_TREND: React.CSSProperties = {
+  fontSize: '0.78rem', fontWeight: 700,
+}
+
+const SCORE_SUBTITLE: React.CSSProperties = {
+  fontSize: '0.78rem', color: '#8aaabb', margin: '0 0 0.85rem', fontWeight: 600,
+  textTransform: 'uppercase', letterSpacing: '0.05em',
+}
+
+const SCORE_FACTORS: React.CSSProperties = {
+  display: 'flex', flexDirection: 'column', gap: '0.45rem',
+}
+
+const SCORE_FACTOR_ROW: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: '0.5rem',
+}
+
+const SCORE_FACTOR_LABEL: React.CSSProperties = {
+  fontSize: '0.78rem', color: '#5b7a99', width: 110, flexShrink: 0, fontWeight: 500,
+}
+
+const SCORE_FACTOR_BAR_BG: React.CSSProperties = {
+  flex: 1, height: 6, background: '#e5e7eb', borderRadius: 3, overflow: 'hidden',
+}
+
+const SCORE_FACTOR_BAR_FILL: React.CSSProperties = {
+  height: '100%', borderRadius: 3, transition: 'width 0.6s ease-out',
+}
+
+const SCORE_FACTOR_VAL: React.CSSProperties = {
+  fontSize: '0.75rem', fontWeight: 700, width: 28, textAlign: 'right',
+}
+
+// ─── Allocation tab ──────────────────────────────────────────────────────────
+
+const ALLOC_NET_WORTH: React.CSSProperties = {
+  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+  padding: '0.75rem 0', borderBottom: '1px solid #e5e7eb', marginBottom: '1.25rem',
+}
+const ALLOC_NW_LABEL: React.CSSProperties = {
+  fontSize: '0.85rem', fontWeight: 600, color: '#5b7a99', textTransform: 'uppercase', letterSpacing: '0.05em',
+}
+const ALLOC_NW_VALUE: React.CSSProperties = {
+  fontSize: '1.6rem', fontWeight: 800, color: '#1e3166',
+}
+const ALLOC_BUCKETS: React.CSSProperties = {
+  display: 'flex', flexDirection: 'column', gap: '1.25rem',
+}
+const ALLOC_BUCKET: React.CSSProperties = {}
+const ALLOC_BUCKET_HEADER: React.CSSProperties = {
+  display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem',
+}
+const ALLOC_BUCKET_LABEL: React.CSSProperties = {
+  fontSize: '0.9rem', fontWeight: 700, color: '#1e3166',
+}
+const ALLOC_BUCKET_STATUS: React.CSSProperties = {
+  fontSize: '0.78rem', fontWeight: 600,
+}
+const ALLOC_BUCKET_VALUES: React.CSSProperties = {
+  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.35rem',
+}
+const ALLOC_BUCKET_CURRENT: React.CSSProperties = {
+  fontSize: '1.1rem', fontWeight: 700, color: '#1e3166',
+}
+const ALLOC_BUCKET_TARGET: React.CSSProperties = {
+  fontSize: '0.78rem', color: '#8aaabb',
+}
+const ALLOC_BAR_BG: React.CSSProperties = {
+  height: 8, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden',
+}
+const ALLOC_BAR_FILL: React.CSSProperties = {
+  height: '100%', borderRadius: 4, transition: 'width 0.6s ease-out',
+}
+const ALLOC_GUIDANCE: React.CSSProperties = {
+  margin: '0.75rem 0 0', fontSize: '0.85rem', color: '#374151', lineHeight: 1.5,
+  background: '#f0f9fb', border: '1px solid #cce6ea', borderRadius: 8, padding: '0.75rem 1rem',
+}
+
+const ACTION_NUMBER: React.CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  width: 22, height: 22, borderRadius: '50%',
+  background: '#1e3166', color: '#fff',
+  fontSize: '0.72rem', fontWeight: 700, marginRight: '0.4rem', flexShrink: 0,
+}
+
+const SCORE_EXPLAINER: React.CSSProperties = {
+  marginTop: '1rem', paddingTop: '0.85rem', borderTop: '1px solid #e5e7eb',
+}
+
+const SCORE_EXPLAINER_TEXT: React.CSSProperties = {
+  margin: 0, fontSize: '0.78rem', color: '#6b7280', lineHeight: 1.6,
+}
+
+const DEMO_BANNER: React.CSSProperties = {
+  background:   '#fffbeb',
+  border:       '1px solid #fcd34d',
+  borderLeft:   '4px solid #f59e0b',
+  borderRadius: 10,
+  padding:      '0.85rem 1rem',
+  marginBottom: '1rem',
+  fontSize:     '0.88rem',
+  color:        '#78350f',
+  lineHeight:   1.5,
+  animation:    'fadeIn 0.3s ease-out',
+}
+
+const DEMO_BANNER_TEXT: React.CSSProperties = {
+  marginBottom: '0.5rem',
+}
+
+const DEMO_BANNER_ACTIONS: React.CSSProperties = {
+  display:  'flex',
+  gap:      '0.6rem',
+  flexWrap: 'wrap',
+}
+
+const DEMO_BANNER_CTA: React.CSSProperties = {
+  display:        'inline-block',
+  padding:        '0.4rem 0.9rem',
+  background:     'linear-gradient(135deg, #2ab9b0, #1e3166)',
+  color:          '#fff',
+  border:         'none',
+  borderRadius:   6,
+  fontSize:       '0.82rem',
+  fontWeight:     700,
+  textDecoration: 'none',
+  cursor:         'pointer',
+}
+
+const DEMO_BANNER_LINK: React.CSSProperties = {
+  background:     'none',
+  border:         '1px solid #2ab9b0',
+  color:          '#1e3166',
+  borderRadius:   6,
+  padding:        '0.4rem 0.9rem',
+  fontSize:       '0.82rem',
+  fontWeight:     700,
+  cursor:         'pointer',
 }
 
 const UPGRADE_SUCCESS_BANNER: React.CSSProperties = {
@@ -2381,6 +2722,20 @@ function SkeletonBlock({ height, width = '100%', mb = '0.75rem' }: { height: num
   return <div className="skeleton" style={{ height, width, marginBottom: mb }} />
 }
 
+function ScoreFactor({ label, value }: { label: string; value: number }) {
+  const v = Math.round(value)
+  const color = v >= 70 ? '#059669' : v >= 40 ? '#d97706' : '#dc2626'
+  return (
+    <div style={SCORE_FACTOR_ROW}>
+      <span style={SCORE_FACTOR_LABEL}>{label}</span>
+      <div style={SCORE_FACTOR_BAR_BG}>
+        <div style={{ ...SCORE_FACTOR_BAR_FILL, width: `${v}%`, background: color }} />
+      </div>
+      <span style={{ ...SCORE_FACTOR_VAL, color }}>{v}</span>
+    </div>
+  )
+}
+
 function SkeletonDashboard() {
   return (
     <div style={{ padding: '1rem 0.75rem', maxWidth: 720, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -2414,7 +2769,7 @@ const TD_BASE: React.CSSProperties = {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page:        { maxWidth: 900, margin: '0 auto', padding: '2.5rem 1.5rem', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: '#1e3166', background: '#f0f9fb', minHeight: '100vh', overflowX: 'hidden' as const, boxSizing: 'border-box' as const } as React.CSSProperties,
+  page:        { maxWidth: 900, margin: '0 auto', padding: '2.5rem 1.5rem', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: '#1e3166', background: '#f0f9fb', minHeight: '100vh', overflowX: 'clip' as const, boxSizing: 'border-box' as const, width: '100%' } as React.CSSProperties,
   header:      { marginBottom: '1.75rem', position: 'relative' as const },
   logo:        { width: 'min(240px, 60vw)', height: 'auto', display: 'block', marginBottom: '-3rem', mixBlendMode: 'multiply', cursor: 'pointer' } as React.CSSProperties,
   subtitle:    { fontSize: 'clamp(0.78rem, 3vw, 0.9rem)', color: '#1e3166', margin: 0, fontWeight: 900 } as React.CSSProperties,

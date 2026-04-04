@@ -6,6 +6,7 @@ import { getCashflow }             from '@/lib/db/cashflow'
 import { getPushSubscriptions }    from '@/lib/db/push'
 import { getWebpush }              from '@/lib/push/client'
 import { deletePushSubscription }  from '@/lib/db/push'
+import { demoGuard, getDemoCheckin } from '@/lib/demo'
 
 const CHECKIN_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 
@@ -20,6 +21,7 @@ export async function POST(): Promise<Response> {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
+    const demo = await demoGuard(userId, getDemoCheckin()); if (demo) return demo
     // ── Enforce 7-day minimum interval ──────────────────────────────────────
     const lastAt = await getLastCheckinAt(userId)
     const now    = Date.now()

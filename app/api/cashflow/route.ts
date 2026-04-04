@@ -1,12 +1,14 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { getCashflow } from '@/lib/db/cashflow'
+import { demoGuard, getDemoCashflow } from '@/lib/demo'
 
 export async function GET(request: Request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
+    const demo = await demoGuard(userId, getDemoCashflow()); if (demo) return demo
     const { searchParams } = new URL(request.url)
     const start_date = searchParams.get('start_date') ?? undefined
     const end_date   = searchParams.get('end_date')   ?? undefined

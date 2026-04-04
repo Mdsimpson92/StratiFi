@@ -2,17 +2,23 @@ import { auth }                 from '@clerk/nextjs/server'
 import { NextResponse }         from 'next/server'
 import { getUserSubscription }  from '@/lib/db/stripe'
 import { PAYWALL_ENABLED }      from '@/lib/paywall'
+import { isDemoUser }           from '@/lib/demo'
 
 export async function GET() {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const sub = await getUserSubscription(userId)
+    const [sub, isDemo] = await Promise.all([
+      getUserSubscription(userId),
+      isDemoUser(userId),
+    ])
+
     return NextResponse.json({
       is_pro:          PAYWALL_ENABLED ? (sub?.is_pro ?? false) : true,
       status:          sub?.status ?? 'free',
       paywall_enabled: PAYWALL_ENABLED,
+      is_demo:         isDemo,
     })
   } catch (err) {
     console.error('[/api/stripe/subscription]', err)

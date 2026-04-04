@@ -1,10 +1,12 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { markAlertRead } from '@/lib/db/alerts'
+import { isDemoUser } from '@/lib/demo'
 
 export async function POST(request: Request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (await isDemoUser(userId)) return NextResponse.json({ ok: true })
 
   const { alert_key } = await request.json()
   if (!alert_key || typeof alert_key !== 'string') {

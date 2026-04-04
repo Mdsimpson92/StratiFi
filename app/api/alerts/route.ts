@@ -3,12 +3,15 @@ import { NextResponse }        from 'next/server'
 import { getAlerts }           from '@/lib/db/alerts'
 import { getUserSubscription } from '@/lib/db/stripe'
 import { canAccess }           from '@/lib/paywall'
+import { demoGuard, getDemoAlerts } from '@/lib/demo'
 
 export async function GET() {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
+    const demo = await demoGuard(userId, getDemoAlerts()); if (demo) return demo
+
     const sub   = await getUserSubscription(userId)
     const isPro = sub?.is_pro ?? false
     if (!canAccess('alerts', isPro)) {
