@@ -2305,7 +2305,7 @@ const SCORE_SECTION: React.CSSProperties = {
 }
 
 const SCORE_LAYOUT: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap',
+  display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap', justifyContent: 'center',
 }
 
 const SCORE_GAUGE_WRAP: React.CSSProperties = {
@@ -2326,7 +2326,7 @@ const SCORE_OF: React.CSSProperties = {
 }
 
 const SCORE_DETAIL: React.CSSProperties = {
-  flex: 1, minWidth: 180,
+  flex: 1, minWidth: 200, width: '100%',
 }
 
 const SCORE_LABEL_ROW: React.CSSProperties = {
@@ -2380,7 +2380,7 @@ const ALLOC_NW_LABEL: React.CSSProperties = {
   fontSize: '0.85rem', fontWeight: 600, color: '#5b7a99', textTransform: 'uppercase', letterSpacing: '0.05em',
 }
 const ALLOC_NW_VALUE: React.CSSProperties = {
-  fontSize: '1.6rem', fontWeight: 800, color: '#1e3166',
+  fontSize: 'clamp(1.25rem, 5vw, 1.6rem)', fontWeight: 800, color: '#1e3166',
 }
 const ALLOC_BUCKETS: React.CSSProperties = {
   display: 'flex', flexDirection: 'column', gap: '1.25rem',
@@ -2396,7 +2396,7 @@ const ALLOC_BUCKET_STATUS: React.CSSProperties = {
   fontSize: '0.78rem', fontWeight: 600,
 }
 const ALLOC_BUCKET_VALUES: React.CSSProperties = {
-  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.35rem',
+  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.35rem', flexWrap: 'wrap', gap: '0.25rem',
 }
 const ALLOC_BUCKET_CURRENT: React.CSSProperties = {
   fontSize: '1.1rem', fontWeight: 700, color: '#1e3166',
