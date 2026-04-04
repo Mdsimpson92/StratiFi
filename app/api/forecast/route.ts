@@ -1,8 +1,6 @@
 import { auth }                from '@clerk/nextjs/server'
 import { NextResponse }        from 'next/server'
 import { getForecast }         from '@/lib/db/forecast'
-import { getUserSubscription } from '@/lib/db/stripe'
-import { canAccess }           from '@/lib/paywall'
 import { demoGuard, getDemoForecast } from '@/lib/demo'
 
 export async function GET() {
@@ -11,12 +9,6 @@ export async function GET() {
 
   try {
     const demo = await demoGuard(userId, getDemoForecast()); if (demo) return demo
-
-    const sub   = await getUserSubscription(userId)
-    const isPro = sub?.is_pro ?? false
-    if (!canAccess('forecast', isPro)) {
-      return NextResponse.json({ error: 'Pro feature' }, { status: 403 })
-    }
 
     const data = await getForecast(userId)
     return NextResponse.json(data)

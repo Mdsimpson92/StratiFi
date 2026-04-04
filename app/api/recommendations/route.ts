@@ -1,8 +1,6 @@
 import { auth }                from '@clerk/nextjs/server'
 import { NextResponse }        from 'next/server'
 import { getRecommendations }  from '@/lib/db/recommendations'
-import { getUserSubscription } from '@/lib/db/stripe'
-import { canAccess }           from '@/lib/paywall'
 import { demoGuard, getDemoRecommendations } from '@/lib/demo'
 import { query }               from '@/lib/db/client'
 import { queryOne }            from '@/lib/db/client'
@@ -25,12 +23,6 @@ export async function GET() {
 
   try {
     const demo = await demoGuard(userId, getDemoRecommendations()); if (demo) return demo
-
-    const sub   = await getUserSubscription(userId)
-    const isPro = sub?.is_pro ?? false
-    if (!canAccess('recommendations', isPro)) {
-      return NextResponse.json({ error: 'Pro feature' }, { status: 403 })
-    }
 
     // Fetch both recommendation sources in parallel
     const [transactionRecs, capitalRows, profile] = await Promise.all([
@@ -56,14 +48,12 @@ export async function GET() {
     }))
 
     // Merge: transaction recs first (real-time signals), then capital priorities
-    // Priority order: high > medium > low, then transaction recs before capital
     const PRIORITY_WEIGHT = { high: 0, medium: 1, low: 2 }
     const merged = [...transactionRecs, ...capitalRecs]
       .sort((a, b) => {
         const pa = PRIORITY_WEIGHT[a.priority] ?? 1
         const pb = PRIORITY_WEIGHT[b.priority] ?? 1
         if (pa !== pb) return pa - pb
-        // For same priority, prefer transaction recs (actionable now)
         const aIsTransaction = !a.type.startsWith('capital_')
         const bIsTransaction = !b.type.startsWith('capital_')
         if (aIsTransaction !== bIsTransaction) return aIsTransaction ? -1 : 1
