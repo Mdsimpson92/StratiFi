@@ -17,23 +17,28 @@ export interface CashflowSummary {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-// Inflow:  negative amounts (credits — money coming in, e.g. payroll, refunds)
-// Outflow: positive amounts (debits — money going out)
+// Income detection: either negative amount (bank convention) OR direction='credit'
+// Expense detection: positive amount with direction='debit' or NULL direction
+// Uses COALESCE(date, transaction_date) to support both column names
+
+const INFLOW_CASE = `CASE WHEN amount < 0 THEN ABS(amount) WHEN direction = 'credit' THEN amount ELSE 0 END`
+const OUTFLOW_CASE = `CASE WHEN amount > 0 AND (direction IS NULL OR direction = 'debit') THEN amount ELSE 0 END`
+const DATE_COL = `COALESCE(date, transaction_date)`
 
 export async function getCashflow(
   user_id: string,
   options: { start_date?: string; end_date?: string } = {}
 ): Promise<CashflowSummary> {
   const params: unknown[] = [user_id]
-  const dateFilters: string[] = ['amount IS NOT NULL', 'transaction_date IS NOT NULL']
+  const dateFilters: string[] = [`amount IS NOT NULL`, `${DATE_COL} IS NOT NULL`]
 
   if (options.start_date) {
     params.push(options.start_date)
-    dateFilters.push(`transaction_date >= $${params.length}`)
+    dateFilters.push(`${DATE_COL} >= $${params.length}`)
   }
   if (options.end_date) {
     params.push(options.end_date)
-    dateFilters.push(`transaction_date <= $${params.length}`)
+    dateFilters.push(`${DATE_COL} <= $${params.length}`)
   }
 
   const where = `user_id = $1 AND ${dateFilters.join(' AND ')}`
@@ -47,17 +52,14 @@ export async function getCashflow(
       net:     string
     }>(
       `SELECT
-         TO_CHAR(DATE_TRUNC('month', transaction_date), 'YYYY-MM')                  AS month,
-         ROUND(SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END)::numeric, 2)   AS inflow,
-         ROUND(SUM(CASE WHEN amount > 0 THEN amount      ELSE 0 END)::numeric, 2)   AS outflow,
-         ROUND(
-           SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END) -
-           SUM(CASE WHEN amount > 0 THEN amount      ELSE 0 END)
-         ::numeric, 2)                                                               AS net
+         TO_CHAR(DATE_TRUNC('month', ${DATE_COL}), 'YYYY-MM')          AS month,
+         ROUND(SUM(${INFLOW_CASE})::numeric, 2)                        AS inflow,
+         ROUND(SUM(${OUTFLOW_CASE})::numeric, 2)                       AS outflow,
+         ROUND((SUM(${INFLOW_CASE}) - SUM(${OUTFLOW_CASE}))::numeric, 2) AS net
        FROM transactions
        WHERE ${where}
-       GROUP BY DATE_TRUNC('month', transaction_date)
-       ORDER BY DATE_TRUNC('month', transaction_date)`,
+       GROUP BY DATE_TRUNC('month', ${DATE_COL})
+       ORDER BY DATE_TRUNC('month', ${DATE_COL})`,
       params
     ),
 
@@ -67,12 +69,9 @@ export async function getCashflow(
       net:           string
     }>(
       `SELECT
-         ROUND(SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END)::numeric, 2)  AS total_inflow,
-         ROUND(SUM(CASE WHEN amount > 0 THEN amount      ELSE 0 END)::numeric, 2)  AS total_outflow,
-         ROUND(
-           SUM(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END) -
-           SUM(CASE WHEN amount > 0 THEN amount      ELSE 0 END)
-         ::numeric, 2)                                                              AS net
+         ROUND(SUM(${INFLOW_CASE})::numeric, 2)                           AS total_inflow,
+         ROUND(SUM(${OUTFLOW_CASE})::numeric, 2)                          AS total_outflow,
+         ROUND((SUM(${INFLOW_CASE}) - SUM(${OUTFLOW_CASE}))::numeric, 2)  AS net
        FROM transactions
        WHERE ${where}`,
       params
