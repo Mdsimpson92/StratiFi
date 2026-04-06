@@ -673,7 +673,7 @@ export default function Dashboard() {
           </p>
         )}
         <button
-          style={{ ...SHARE_BTN, right: isMobile ? '1.25rem' : '3.25rem' }}
+          style={{ ...SHARE_BTN, right: isMobile ? '3.5rem' : '3.25rem' }}
           onClick={() => setShowSnapshotModal(true)}
           title="Share snapshot"
         >
@@ -1197,7 +1197,7 @@ export default function Dashboard() {
         <h2 style={styles.heading}>Insights</h2>
         {sourceLabel && <p style={SOURCE_NOTE}>{sourceLabel}</p>}
         {insights.length === 0
-          ? <p style={styles.empty}>{hasData ? 'No insights yet.' : 'Connect a bank or upload transactions to see insights.'}</p>
+          ? <p style={styles.empty}>{hasData ? 'Not enough data for insights yet. Upload more transactions to unlock them.' : 'Connect a bank or upload transactions to see insights.'}</p>
           : <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               {insights.map((ins) => {
                 const isOpen = expandedInsight === ins.type
@@ -1376,7 +1376,7 @@ export default function Dashboard() {
           Projected from your recurring charges and income patterns. Assumes bills continue at their current amount and frequency.
         </p>
         {!forecast ? (
-          <p style={styles.empty}>Not enough data to forecast yet.</p>
+          <p style={styles.empty}>Not enough data to forecast yet. Upload 2+ months of transactions to enable projections.</p>
         ) : (
           <>
             <div style={styles.statRow} className="pwa-stat-row">
@@ -1451,7 +1451,7 @@ export default function Dashboard() {
           : (
             <div style={styles.pieWrapper} className="pwa-pie-wrapper">
               <div>
-                <PieChart width={isMobile ? 280 : 280} height={isMobile ? 220 : 280}>
+                <PieChart width={isMobile ? Math.min(280, (typeof window !== 'undefined' ? window.innerWidth : 360) - 80) : 280} height={isMobile ? 220 : 280}>
                   <Pie
                     data={categories}
                     dataKey="total_spent"
@@ -1510,7 +1510,7 @@ export default function Dashboard() {
         <h2 style={styles.heading}>Subscriptions & Money Leaks</h2>
         <p style={SOURCE_NOTE}>Detected from recurring transaction patterns. Some charges may be missing or mislabeled.</p>
         {!subData || subData.subscriptions.length === 0 ? (
-          <p style={styles.empty}>No recurring subscriptions detected.</p>
+          <p style={styles.empty}>No recurring subscriptions detected yet. Upload 2+ months of data to detect patterns.</p>
         ) : (
           <>
             {/* Total cost stat */}
@@ -1592,7 +1592,7 @@ export default function Dashboard() {
       <section style={styles.section} className="pwa-section">
         <h2 style={styles.heading}>Recurring Patterns</h2>
         {patterns.length === 0
-          ? <p style={styles.empty}>No recurring patterns detected.</p>
+          ? <p style={styles.empty}>No recurring patterns detected yet. More transaction history helps identify them.</p>
           : <div className="table-scroll-wrap"><div className="table-scroll"><table style={styles.table}>
               <thead>
                 <tr>
@@ -1621,7 +1621,7 @@ export default function Dashboard() {
         <h2 style={styles.heading}>Unusual Transactions</h2>
         <p style={SOURCE_NOTE}>Flagged when a charge is significantly higher than your average at that merchant.</p>
         {anomalies.length === 0
-          ? <p style={styles.empty}>No unusual transactions detected.</p>
+          ? <p style={styles.empty}>No unusual transactions detected. This is a good sign.</p>
           : <>
               <div className="table-scroll-wrap"><div className="table-scroll"><table style={styles.table}>
                 <thead>
@@ -2366,7 +2366,7 @@ const SCORE_FACTOR_ROW: React.CSSProperties = {
 }
 
 const SCORE_FACTOR_LABEL: React.CSSProperties = {
-  fontSize: '0.78rem', color: '#5b7a99', width: 110, flexShrink: 0, fontWeight: 500,
+  fontSize: '0.78rem', color: '#5b7a99', minWidth: 90, flexShrink: 0, fontWeight: 500,
 }
 
 const SCORE_FACTOR_BAR_BG: React.CSSProperties = {
