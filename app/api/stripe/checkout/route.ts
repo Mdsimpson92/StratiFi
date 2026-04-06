@@ -43,7 +43,6 @@ export async function POST(req: Request) {
     // Create a Checkout session for the selected plan
     const session = await stripe.checkout.sessions.create({
       customer:             customerId,
-      ui_mode:              'hosted_page',
       mode:                 'subscription',
       payment_method_types: ['card'],
       line_items: [
