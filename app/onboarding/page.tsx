@@ -343,7 +343,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
+    <div className="min-h-screen bg-gray-50 flex items-start sm:items-center justify-center py-6 sm:py-12 px-4">
       <div className="w-full max-w-lg">
         {/* Progress bar */}
         <div className="mb-8">
@@ -359,7 +359,7 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 sm:p-8">
           {step === 1 && <Step1 data={data} onChange={update} onNext={next} />}
           {step === 2 && <Step2 data={data} onChange={update} onNext={next} onBack={back} />}
           {step === 3 && <Step3 data={data} onChange={update} onNext={next} onBack={back} />}

@@ -771,7 +771,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {!isPro && (
+      {!isPro && (!isMobile || activeTab === 'overview' || activeTab === 'alerts') && (
         <UpgradeCard onUpgrade={handleUpgrade} upgrading={upgrading} elevated={isElevated} source="overview" />
       )}
 
