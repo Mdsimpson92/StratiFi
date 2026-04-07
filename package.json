@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.8",
+    "@sentry/nextjs": "^10.47.0",
     "@upstash/redis": "^1.37.0",
     "csv-parse": "^6.2.1",
     "next": "16.2.1",
