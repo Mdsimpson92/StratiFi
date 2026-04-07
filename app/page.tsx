@@ -621,10 +621,8 @@ export default function Dashboard() {
         setScoreData(sc?.score ?? null)
         setAllocation(alloc?.allocation ?? null)
         setDataLoadedAt(new Date())
-        // Trigger first-run guided experience for ALL new users (per-user key)
-        const userId = clerkUser?.id ?? ''
-        const onboardingKey = `stratifi_onboarding_done_${userId}`
-        if (typeof window !== 'undefined' && userId && !localStorage.getItem(onboardingKey)) {
+        // Trigger first-run guided experience when user has no profile
+        if (!(stripe?.has_profile ?? false)) {
           setFirstRunStep(1)
         }
       })
@@ -746,13 +744,9 @@ export default function Dashboard() {
               </div>
               <p style={FR_BODY}>Next, answer a few quick questions so we can calculate your real score.</p>
               <button style={FR_BTN} onClick={() => {
-                const uid = clerkUser?.id ?? ''
-                localStorage.setItem(`stratifi_onboarding_done_${uid}`, 'true')
                 window.location.href = '/onboarding'
               }}>Set Up My Profile</button>
               <button style={FR_BTN_GHOST} onClick={() => {
-                const uid = clerkUser?.id ?? ''
-                localStorage.setItem(`stratifi_onboarding_done_${uid}`, 'true')
                 setFirstRunStep(0)
               }}>Skip for now</button>
             </div>
