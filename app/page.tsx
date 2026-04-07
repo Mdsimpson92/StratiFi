@@ -161,6 +161,7 @@ export default function Dashboard() {
   const [allocation, setAllocation]           = useState<AllocationData | null>(null)
   const [isPro, setIsPro]                     = useState(false)
   const [isDemo, setIsDemo]                   = useState(false)
+  const [firstRunStep, setFirstRunStep]       = useState(0)  // 0 = not started, 1-3 = guided flow, 4 = done
   const [paywallEnabled, setPaywallEnabled]   = useState(false)
   const [upgrading, setUpgrading]             = useState(false)
   const [linkToken, setLinkToken]             = useState<string | null>(null)
@@ -619,6 +620,10 @@ export default function Dashboard() {
         setScoreData(sc?.score ?? null)
         setAllocation(alloc?.allocation ?? null)
         setDataLoadedAt(new Date())
+        // Trigger guided first-run for demo users who haven't seen it
+        if ((stripe?.is_demo ?? false) && !localStorage.getItem('stratifi_first_run_done')) {
+          setFirstRunStep(1)
+        }
       })
       .catch(() => setError('Failed to load dashboard data.'))
       .finally(() => setLoading(false))
@@ -645,6 +650,70 @@ export default function Dashboard() {
           <img src="/stratifi-logo.png" alt="StratiFi" style={styles.introLogo} />
           <p style={styles.introTagline}>Where Strategy meets Finance.</p>
         </div>
+      ) : firstRunStep >= 1 && firstRunStep <= 3 && scoreData ? (
+        <div style={FIRST_RUN_OVERLAY}>
+          {firstRunStep === 1 && (
+            <div style={FIRST_RUN_CARD}>
+              <p style={FIRST_RUN_STEP_LABEL}>Your Financial Score</p>
+              <div style={FIRST_RUN_GAUGE}>
+                <svg viewBox="0 0 120 120" width={160} height={160}>
+                  <circle cx="60" cy="60" r={52} fill="none" stroke="#1a2744" strokeWidth="9" />
+                  <circle cx="60" cy="60" r={52} fill="none"
+                    stroke={scoreData.overall >= 65 ? '#2ab9b0' : scoreData.overall >= 35 ? '#f59e0b' : '#ef4444'}
+                    strokeWidth="9" strokeDasharray={2 * Math.PI * 52}
+                    strokeDashoffset={2 * Math.PI * 52 * (1 - scoreData.overall / 100)}
+                    strokeLinecap="round" transform="rotate(-90 60 60)"
+                    style={{ transition: 'stroke-dashoffset 1s ease-out' }}
+                  />
+                </svg>
+                <div style={FIRST_RUN_GAUGE_NUM}>{scoreData.overall}</div>
+              </div>
+              <p style={FIRST_RUN_LABEL}>{scoreData.label}</p>
+              <p style={FIRST_RUN_SUB}>Based on cash flow, debt load, savings rate, and allocation efficiency.</p>
+              <button style={FIRST_RUN_BTN} onClick={() => setFirstRunStep(2)}>See What To Fix</button>
+            </div>
+          )}
+          {firstRunStep === 2 && (
+            <div style={FIRST_RUN_CARD}>
+              <p style={FIRST_RUN_STEP_LABEL}>Inefficiencies Detected</p>
+              <div style={FIRST_RUN_PROBLEMS}>
+                {allocation && allocation.buckets.filter(b => b.label !== 'Debt' ? b.value < b.target : b.value > 0).map(b => (
+                  <div key={b.label} style={FIRST_RUN_PROBLEM_ROW}>
+                    <span style={{ ...FIRST_RUN_DOT, background: b.color }} />
+                    <span style={FIRST_RUN_PROBLEM_TEXT}>
+                      {b.label === 'Debt' ? `$${b.value.toLocaleString()} outstanding debt` : `${b.label}: $${(b.target - b.value).toLocaleString()} below target`}
+                    </span>
+                  </div>
+                ))}
+                <div style={FIRST_RUN_PROBLEM_ROW}>
+                  <span style={{ ...FIRST_RUN_DOT, background: '#f59e0b' }} />
+                  <span style={FIRST_RUN_PROBLEM_TEXT}>$55/mo in idle subscriptions</span>
+                </div>
+              </div>
+              <button style={FIRST_RUN_BTN} onClick={() => setFirstRunStep(3)}>See Recommended Actions</button>
+            </div>
+          )}
+          {firstRunStep === 3 && (
+            <div style={FIRST_RUN_CARD}>
+              <p style={FIRST_RUN_STEP_LABEL}>Your Action Plan</p>
+              <div style={FIRST_RUN_ACTIONS}>
+                {recommendations.slice(0, 3).map((rec, i) => (
+                  <div key={rec.id} style={FIRST_RUN_ACTION_ROW}>
+                    <span style={FIRST_RUN_ACTION_NUM}>{i + 1}</span>
+                    <div>
+                      <p style={FIRST_RUN_ACTION_TITLE}>{rec.title}</p>
+                      <p style={FIRST_RUN_ACTION_DESC}>{rec.suggested_action}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button style={FIRST_RUN_BTN} onClick={() => { setFirstRunStep(4); localStorage.setItem('stratifi_first_run_done', '1') }}>Open Control Panel</button>
+            </div>
+          )}
+          <div style={FIRST_RUN_DOTS}>
+            {[1, 2, 3].map(s => <span key={s} style={{ ...FIRST_RUN_DOT_NAV, opacity: firstRunStep === s ? 1 : 0.3 }} />)}
+          </div>
+        </div>
       ) : loading ? (
         <SkeletonDashboard />
       ) : error ? (
@@ -655,8 +724,8 @@ export default function Dashboard() {
         <img src="/stratifi-logo.png" alt="StratiFi" style={styles.logo} className="pwa-logo" onClick={() => window.location.reload()} />
 
         {/* ── Hero ──────────────────────────────────────────────────────── */}
-        <h1 style={HERO_HEADLINE}>{firstName ? `Hello, ${firstName}` : 'Know exactly what you can spend today'}</h1>
-        <p style={HERO_SUB}>No guesswork. No budgeting. Just decisions.</p>
+        <h1 style={HERO_HEADLINE}>{firstName ? `${firstName}'s Financial System` : 'Your Financial System'}</h1>
+        <p style={HERO_SUB}>Allocate. Optimize. Decide.</p>
 
         {!canAccessPro && (
           <button style={HERO_CTA} onClick={() => handleUpgrade()} disabled={upgrading}>
@@ -765,7 +834,7 @@ export default function Dashboard() {
       {isDemo && (
         <div style={DEMO_BANNER}>
           <div style={DEMO_BANNER_TEXT}>
-            <strong>Demo Mode</strong> &mdash; You&rsquo;re viewing simulated financial data.
+            <strong>Simulation Mode</strong> &mdash; You&rsquo;re viewing a simulated $75k portfolio.
           </div>
           <div style={DEMO_BANNER_ACTIONS}>
             <a href="/transactions" style={DEMO_BANNER_CTA}>Upload Transactions</a>
@@ -794,7 +863,7 @@ export default function Dashboard() {
       )}
       {(!isMobile || activeTab === 'allocation') && allocation && (<>
       <section style={styles.section} className="pwa-section">
-        <h2 style={styles.heading}>Financial Allocation</h2>
+        <h2 style={styles.heading}>Capital Allocation</h2>
         <p style={SOURCE_NOTE}>Where your money sits today vs where it should be.</p>
 
         {/* Net worth header */}
@@ -1199,7 +1268,7 @@ export default function Dashboard() {
       )}
 
       <section style={styles.section} className="pwa-section">
-        <h2 style={styles.heading}>Insights</h2>
+        <h2 style={styles.heading}>Financial Intelligence</h2>
         {sourceLabel && <p style={SOURCE_NOTE}>{sourceLabel}</p>}
         {insights.length === 0
           ? <p style={styles.empty}>{hasData ? 'Not enough data for insights yet. Upload more transactions to unlock them.' : 'Connect a bank or upload transactions to see insights.'}</p>
@@ -1296,7 +1365,7 @@ export default function Dashboard() {
       {recommendations.length > 0 && (!isMobile || activeTab === 'overview') && (
       <section style={styles.section} className="pwa-section">
         <h2 style={styles.heading}>
-          Top Actions
+          Fix This
           {paywallEnabled && !canAccessPro && <span style={styles.proLabel}>Pro</span>}
         </h2>
         <p style={SOURCE_NOTE}>
@@ -1338,43 +1407,10 @@ export default function Dashboard() {
       </section>
       )}
 
-      {/* ── Explanation block ──────────────────────────────────────────── */}
-      <div style={EXPLAIN_BLOCK}>
-        <p style={EXPLAIN_LINE}>Most apps track what you <em>spent</em>.</p>
-        <p style={EXPLAIN_LINE}>StratiFi tells you what you <em>can</em> spend.</p>
-        <p style={EXPLAIN_DETAIL}>It builds a forward plan using your income, bills, and timing — so every decision is calculated.</p>
-      </div>
-
-      {/* ── Benefit strip ──────────────────────────────────────────────── */}
-      <div style={BENEFIT_STRIP}>
-        <div style={BENEFIT_CARD}>
-          <div style={BENEFIT_TITLE}>Clarity</div>
-          <div style={BENEFIT_DESC}>See your exact safe-to-spend number at any moment.</div>
-        </div>
-        <div style={BENEFIT_CARD}>
-          <div style={BENEFIT_TITLE}>Control</div>
-          <div style={BENEFIT_DESC}>Stay aligned with bills and avoid shortfalls.</div>
-        </div>
-        <div style={BENEFIT_CARD}>
-          <div style={BENEFIT_TITLE}>Foresight</div>
-          <div style={BENEFIT_DESC}>Know what happens before you spend.</div>
-        </div>
-      </div>
-
-      {/* ── CTA reinforcement (free users) ─────────────────────────────── */}
-      {!canAccessPro && (
-        <div style={CTA_REINFORCE}>
-          <p style={CTA_REINFORCE_TEXT}>Stop guessing. Start deciding.</p>
-          <button style={HERO_CTA} onClick={() => handleUpgrade()} disabled={upgrading}>
-            {upgrading ? 'Redirecting…' : 'Upgrade to Pro'}
-          </button>
-        </div>
-      )}
-
-      {/* ── Forecast ─────────────────────────────────────────────────────── */}
+      {/* ── 30-Day Projection ────────────────────────────────────────── */}
       <section style={styles.section} className="pwa-section">
         <h2 style={styles.heading}>
-          30-Day Forecast
+          30-Day Projection
           {paywallEnabled && !canAccessPro && <span style={styles.proLabel}>Pro</span>}
         </h2>
         <p style={SOURCE_NOTE}>
@@ -1449,7 +1485,7 @@ export default function Dashboard() {
 
       {/* ── Spending Breakdown ───────────────────────────────────────────── */}
       <section id="section-categories" style={styles.section} className="pwa-section">
-        <h2 style={styles.heading}>Spending by Category</h2>
+        <h2 style={styles.heading}>Capital Distribution</h2>
         <p style={SOURCE_NOTE}>Categories assigned based on transaction details. Some may be approximate.</p>
         {categories.length === 0
           ? <p style={styles.empty}>No category data yet.</p>
@@ -1512,7 +1548,7 @@ export default function Dashboard() {
 
       {/* ── Subscriptions & Waste ────────────────────────────────────────── */}
       <section id="section-subscriptions" style={styles.section} className="pwa-section">
-        <h2 style={styles.heading}>Subscriptions & Money Leaks</h2>
+        <h2 style={styles.heading}>Recurring Liabilities</h2>
         <p style={SOURCE_NOTE}>Detected from recurring transaction patterns. Some charges may be missing or mislabeled.</p>
         {!subData || subData.subscriptions.length === 0 ? (
           <p style={styles.empty}>No recurring subscriptions detected yet. Upload 2+ months of data to detect patterns.</p>
@@ -2429,6 +2465,81 @@ const ALLOC_BAR_FILL: React.CSSProperties = {
 const ALLOC_GUIDANCE: React.CSSProperties = {
   margin: '0.75rem 0 0', fontSize: '0.85rem', color: '#374151', lineHeight: 1.5,
   background: '#f0f9fb', border: '1px solid #cce6ea', borderRadius: 8, padding: '0.75rem 1rem',
+}
+
+// ─── Guided first-run flow ────────────────────────────────────────────────────
+
+const FIRST_RUN_OVERLAY: React.CSSProperties = {
+  minHeight: '100vh', display: 'flex', flexDirection: 'column',
+  alignItems: 'center', justifyContent: 'center', padding: '2rem 1.5rem',
+  background: 'linear-gradient(165deg, #0d1b2a 0%, #1b2a4a 50%, #0d2818 100%)',
+}
+const FIRST_RUN_CARD: React.CSSProperties = {
+  maxWidth: 420, width: '100%', textAlign: 'center',
+  animation: 'fadeIn 0.5s ease-out',
+}
+const FIRST_RUN_STEP_LABEL: React.CSSProperties = {
+  fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.12em',
+  textTransform: 'uppercase', color: '#2ab9b0', margin: '0 0 1.5rem',
+}
+const FIRST_RUN_GAUGE: React.CSSProperties = {
+  position: 'relative', width: 160, height: 160, margin: '0 auto 1rem',
+}
+const FIRST_RUN_GAUGE_NUM: React.CSSProperties = {
+  position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+  justifyContent: 'center', fontSize: '2.5rem', fontWeight: 800, color: '#ffffff',
+}
+const FIRST_RUN_LABEL: React.CSSProperties = {
+  fontSize: '1.3rem', fontWeight: 700, color: '#ffffff', margin: '0 0 0.5rem',
+}
+const FIRST_RUN_SUB: React.CSSProperties = {
+  fontSize: '0.85rem', color: '#8aaabb', margin: '0 0 2rem', lineHeight: 1.5,
+}
+const FIRST_RUN_BTN: React.CSSProperties = {
+  display: 'inline-block', padding: '0.75rem 2rem',
+  background: '#2ab9b0', color: '#fff', border: 'none', borderRadius: 8,
+  fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer',
+  letterSpacing: '0.02em',
+}
+const FIRST_RUN_PROBLEMS: React.CSSProperties = {
+  display: 'flex', flexDirection: 'column', gap: '0.85rem',
+  textAlign: 'left', margin: '0 0 2rem',
+}
+const FIRST_RUN_PROBLEM_ROW: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', gap: '0.75rem',
+  background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '0.75rem 1rem',
+}
+const FIRST_RUN_DOT: React.CSSProperties = {
+  width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+}
+const FIRST_RUN_PROBLEM_TEXT: React.CSSProperties = {
+  fontSize: '0.88rem', color: '#e2e8f0', lineHeight: 1.4,
+}
+const FIRST_RUN_ACTIONS: React.CSSProperties = {
+  display: 'flex', flexDirection: 'column', gap: '0.75rem',
+  textAlign: 'left', margin: '0 0 2rem',
+}
+const FIRST_RUN_ACTION_ROW: React.CSSProperties = {
+  display: 'flex', gap: '0.75rem',
+  background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '0.85rem 1rem',
+}
+const FIRST_RUN_ACTION_NUM: React.CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+  background: '#2ab9b0', color: '#fff', fontSize: '0.8rem', fontWeight: 700,
+}
+const FIRST_RUN_ACTION_TITLE: React.CSSProperties = {
+  fontSize: '0.9rem', fontWeight: 700, color: '#ffffff', margin: '0 0 0.2rem',
+}
+const FIRST_RUN_ACTION_DESC: React.CSSProperties = {
+  fontSize: '0.78rem', color: '#8aaabb', margin: 0, lineHeight: 1.4,
+}
+const FIRST_RUN_DOTS: React.CSSProperties = {
+  display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1.5rem',
+}
+const FIRST_RUN_DOT_NAV: React.CSSProperties = {
+  width: 8, height: 8, borderRadius: '50%', background: '#2ab9b0',
+  transition: 'opacity 0.3s',
 }
 
 const ACTION_NUMBER: React.CSSProperties = {

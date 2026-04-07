@@ -76,10 +76,11 @@ function isoAgo(days: number): string {
 
 // ─── Demo Dataset ─────────────────────────────────────────────────────────────
 //
-// Financial profile:
-//   Age 30, single, income $85k ($5,500/mo take-home),
-//   expenses $4,500/mo, debt $10k student loans ($300/mo),
-//   liquid savings $35k, retirement $75k.
+// Financial profile ($75k total portfolio):
+//   Checking: $12,500 | Savings: $18,000 | Investments: $35,000
+//   Monthly income: $5,200 | Monthly expenses: $3,800
+//   Debt: $9,500 student loans ($280/mo)
+//   Age 28, single.  Goal: wealth_building.
 //   Net worth ≈ $100k.  Goal: wealth_building.
 //
 // All values are functions of "now" so dates stay fresh across restarts.
@@ -99,13 +100,13 @@ export function getDemoInsights() {
 export function getDemoCashflow() {
   return {
     by_month: [
-      { month: monthStr(2), inflow: 5500, outflow: 4820, net: 680  },
-      { month: monthStr(1), inflow: 5500, outflow: 4550, net: 950  },
-      { month: monthStr(0), inflow: 5500, outflow: 4310, net: 1190 },
+      { month: monthStr(2), inflow: 5200, outflow: 4100, net: 1100 },
+      { month: monthStr(1), inflow: 5200, outflow: 3950, net: 1250 },
+      { month: monthStr(0), inflow: 5200, outflow: 3800, net: 1400 },
     ],
-    total_inflow:  16500,
-    total_outflow: 13680,
-    net:           2820,
+    total_inflow:  15600,
+    total_outflow: 11850,
+    net:           3750,
   }
 }
 
@@ -188,9 +189,9 @@ export function getDemoForecast() {
       { normalized_merchant: 'Xfinity',          expected_date: daysAgo(-15), days_until: 15, estimated_amount: 70.00  },
       { normalized_merchant: 'ChatGPT Plus',     expected_date: daysAgo(-8),  days_until: 8,  estimated_amount: 20.00  },
     ],
-    projected_spend_30d:  4310,
-    projected_income_30d: 5500,
-    projected_net_30d:    1190,
+    projected_spend_30d:  3800,
+    projected_income_30d: 5200,
+    projected_net_30d:    1400,
   }
 }
 
@@ -203,13 +204,13 @@ export function getDemoAlerts() {
   ]
 }
 
-// Top 3 unified actions: 1 real-time signal + 1 cost-saving + 1 strategic move
+// Top 3 unified actions: capital allocation focus
 export function getDemoRecommendations() {
   return {
     recommendations: [
-      { id: 'demo-r1', type: 'upcoming_cash_risk',               priority: 'high' as const,   title: 'State Farm + Verizon due within 10 days ($230)',     explanation: 'Two large bills land close together. Make sure checking covers them.',                     suggested_action: 'Verify $230+ available in checking before the 13th.', savings_amount: undefined },
-      { id: 'demo-r2', type: 'subscription_savings_opportunity', priority: 'high' as const,   title: 'Cancel Adobe CC \u2014 save $55/mo ($660/yr)',       explanation: 'No charge detected in 52 days. If you\u2019re not using it, that\u2019s $660/year wasted.', suggested_action: 'Cancel at adobe.com/account or downgrade to the free plan.',  savings_amount: 55  },
-      { id: 'demo-r3', type: 'capital_savings',                  priority: 'medium' as const, title: 'Increase cash flow margin by $200/mo',               explanation: 'Only 13% of your income is free each month. Target 20%+ to build resilience and fund goals.', suggested_action: 'Audit dining ($210/mo above avg) and subscriptions ($225/mo). Each $100 freed is worth $36,000+ over 30 years invested.', savings_amount: 200 },
+      { id: 'demo-r1', type: 'capital_reallocation',             priority: 'high' as const,   title: 'Move $8,000 idle cash into investments',             explanation: 'You have $30,500 in cash but only need $22,800 (6 months expenses). $8,000 is earning near-zero return.', suggested_action: 'Transfer $8,000 to a low-cost index fund. At 7% annual return, this becomes $31,000 in 20 years.', savings_amount: undefined },
+      { id: 'demo-r2', type: 'subscription_savings_opportunity', priority: 'high' as const,   title: 'Eliminate $55/mo in unused subscriptions',           explanation: 'Adobe CC has had no activity in 52 days. That\u2019s $660/year in idle spend.',               suggested_action: 'Cancel at adobe.com/account. Redirect the $55/mo to your investment account.',  savings_amount: 55  },
+      { id: 'demo-r3', type: 'debt_acceleration',                priority: 'medium' as const, title: 'Accelerate debt payoff \u2014 save $1,200 in interest', explanation: 'You have $1,400/mo free cash flow but only pay $280/mo on $9,500 debt. Adding $220/mo clears it 2 years faster.', suggested_action: 'Increase monthly debt payment to $500. Total interest saved: $1,200.', savings_amount: 220 },
     ],
   }
 }
@@ -218,36 +219,37 @@ export function getDemoCheckin() {
   return { due: false }
 }
 
-// Demo Allocation: $100k net worth across liquid, retirement, minus debt
+// Demo Allocation: $75k total portfolio
+// Checking $12.5k + Savings $18k + Investments $35k - Debt $9.5k = $56k net
 export function getDemoAllocation() {
   return {
     allocation: {
-      net_worth:          100000,
-      liquid_savings:     35000,
-      retirement_savings: 75000,
-      total_debt:         10000,
-      monthly_income:     5500,
-      monthly_expenses:   4500,
+      net_worth:          56000,
+      liquid_savings:     30500,   // checking + savings
+      retirement_savings: 35000,   // investments
+      total_debt:         9500,
+      monthly_income:     5200,
+      monthly_expenses:   3800,
       buckets: [
-        { label: 'Emergency Fund',  value: 35000, target: 27000, color: '#2ab9b0' },  // 6mo expenses = $27k
-        { label: 'Retirement',      value: 75000, target: 85000, color: '#1e3166' },  // age 30: 1x salary
-        { label: 'Debt',            value: 10000, target: 0,     color: '#ef4444' },
+        { label: 'Cash Reserves',   value: 30500, target: 22800, color: '#2ab9b0' },  // 6mo expenses
+        { label: 'Investments',     value: 35000, target: 62400, color: '#1e3166' },  // 1x annual income
+        { label: 'Debt',            value: 9500,  target: 0,     color: '#ef4444' },
       ],
     },
   }
 }
 
-// Demo Foundation Score: 68/100 "Good" — strong savings, moderate debt, room to improve
-// Matches the demo profile: $85k income, $35k liquid, $75k retirement, $10k debt
+// Demo Foundation Score: 72/100 "Good" — solid base, clear room to optimize
+// Matches demo: $12.5k checking + $18k savings, $35k investments, $9.5k debt
 export function getDemoScore() {
   return {
     score: {
-      overall:              68,
-      emergency_fund_score: 100,  // $35k / $4,500 = 7.8 months (target 3) → capped at 100
-      debt_ratio_score:     85,   // $300/$5,500 = 5.5% DTI → strong
-      savings_rate_score:   100,  // $35k/$85k = 41% (target 20%) → capped at 100
+      overall:              72,
+      emergency_fund_score: 100,  // $30.5k liquid / $3,800 = 8 months → capped at 100
+      debt_ratio_score:     85,   // $280/$5,200 = 5.4% DTI → strong
+      savings_rate_score:   78,   // $30.5k/$62.4k = 49% → good but not maxed
       label:                'Good',
-      trend:                3,    // up 3 points from last period
+      trend:                4,
       calculated_at:        new Date().toISOString(),
     },
   }
