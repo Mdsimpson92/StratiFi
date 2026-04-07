@@ -621,8 +621,8 @@ export default function Dashboard() {
         setScoreData(sc?.score ?? null)
         setAllocation(alloc?.allocation ?? null)
         setDataLoadedAt(new Date())
-        // Trigger first-run guided experience for new users
-        if (typeof window !== 'undefined' && !localStorage.getItem('stratifi_onboarding_done') && (stripe?.is_demo ?? false)) {
+        // Trigger first-run guided experience for ALL new users
+        if (typeof window !== 'undefined' && !localStorage.getItem('stratifi_onboarding_done')) {
           setFirstRunStep(1)
         }
       })
