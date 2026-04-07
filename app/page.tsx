@@ -864,7 +864,8 @@ export default function Dashboard() {
             <strong>Simulation Mode</strong> &mdash; You&rsquo;re viewing simulated data. Ready for real numbers?
           </div>
           <div style={DEMO_BANNER_ACTIONS}>
-            <a href="/transactions" style={DEMO_BANNER_CTA}>Upload Your Data</a>
+            <a href="/onboarding" style={DEMO_BANNER_CTA}>Enter Manually</a>
+            <a href="/transactions" style={DEMO_BANNER_LINK}>Upload CSV</a>
           </div>
         </div>
       )}
@@ -1222,9 +1223,9 @@ export default function Dashboard() {
           <div style={{ textAlign: 'center', padding: '1rem 0' }}>
             <p style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e3166', margin: '0 0 0.35rem' }}>Calculate your Financial Health Score</p>
             <p style={{ fontSize: '0.85rem', color: '#5b7a99', margin: '0 0 1rem', lineHeight: 1.5 }}>
-              Tell us about your income, savings, and debt to get a personalized 0–100 score with actionable recommendations.
+              Enter your income, savings, and debt manually to get a personalized 0–100 score with actionable recommendations.
             </p>
-            <a href="/onboarding" style={HERO_CTA}>Complete Your Profile</a>
+            <a href="/onboarding" style={HERO_CTA}>Enter Your Info</a>
           </div>
         </section>
       )}
@@ -2619,6 +2620,7 @@ const DEMO_BANNER_LINK: React.CSSProperties = {
   padding:        '0.4rem 0.9rem',
   fontSize:       '0.82rem',
   fontWeight:     700,
+  textDecoration: 'none',
   cursor:         'pointer',
 }
 
