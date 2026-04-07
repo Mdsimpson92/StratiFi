@@ -529,7 +529,8 @@ export default function Dashboard() {
       const data = await res.json()
       if (data.url) window.location.href = data.url
       else {
-        console.error('[checkout] no redirect URL returned:', data)
+        console.error('[checkout] no redirect URL returned:', JSON.stringify(data))
+        alert('Checkout error: ' + (data.error || 'Unknown error'))
         setUpgradeError(true)
       }
     } catch {
