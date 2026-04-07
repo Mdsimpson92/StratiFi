@@ -655,38 +655,50 @@ export default function Dashboard() {
         <SkeletonDashboard />
       ) : error ? (
         <div style={styles.center}>{error}</div>
-      ) : firstRunStep > 0 && firstRunStep <= 4 ? (
+      ) : firstRunStep > 0 && firstRunStep <= 7 ? (
         <div style={FR_CONTAINER}>
           <img src="/stratifi-logo.png" alt="StratiFi" style={{ width: 140, height: 'auto', marginBottom: '1rem', mixBlendMode: 'multiply' as const }} />
 
-          {/* ── Step 1: Financial Score ────────────────────────── */}
+          {/* ── Step 1: Welcome ─────────────────────────────── */}
           {firstRunStep === 1 && (
             <div style={FR_CARD}>
-              <p style={FR_STEP_LABEL}>SIMULATION MODE</p>
-              <h2 style={FR_HEADING}>Your Financial Score</h2>
-              <div style={{ position: 'relative', width: 160, height: 160, margin: '1.5rem auto' }}>
-                <svg viewBox="0 0 120 120" width={160} height={160}>
+              <p style={FR_STEP_LABEL}>WELCOME TO STRATIFI</p>
+              <h2 style={FR_HEADING}>Your Financial Operating System</h2>
+              <p style={FR_BODY}>StratiFi analyzes your finances and tells you exactly what to fix, how much to save, and where your money should go. Let&rsquo;s walk through what you&rsquo;ll see.</p>
+              <button style={FR_BTN} onClick={() => setFirstRunStep(2)}>Get Started</button>
+            </div>
+          )}
+
+          {/* ── Step 2: Financial Score ────────────────────────── */}
+          {firstRunStep === 2 && (
+            <div style={FR_CARD}>
+              <p style={FR_STEP_LABEL}>OVERVIEW TAB</p>
+              <h2 style={FR_HEADING}>Financial Health Score</h2>
+              <div style={{ position: 'relative', width: 140, height: 140, margin: '1rem auto' }}>
+                <svg viewBox="0 0 120 120" width={140} height={140}>
                   <circle cx="60" cy="60" r={52} fill="none" stroke="#e5e7eb" strokeWidth="9" />
                   <circle cx="60" cy="60" r={52} fill="none" stroke={scoreData && scoreData.overall >= 65 ? '#2ab9b0' : '#f59e0b'} strokeWidth="9"
                     strokeDasharray={2 * Math.PI * 52} strokeDashoffset={2 * Math.PI * 52 * (1 - (scoreData?.overall ?? 68) / 100)}
                     strokeLinecap="round" transform="rotate(-90 60 60)" style={{ transition: 'stroke-dashoffset 1s ease-out' }} />
                 </svg>
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: '2.5rem', fontWeight: 800, color: '#1e3166' }}>{scoreData?.overall ?? 68}</span>
+                  <span style={{ fontSize: '2.2rem', fontWeight: 800, color: '#1e3166' }}>{scoreData?.overall ?? 68}</span>
                 </div>
               </div>
               <p style={FR_LABEL}>{scoreData?.label ?? 'Good'}</p>
-              <p style={FR_BODY}>Based on 6 financial factors: emergency fund, debt ratio, cash flow, savings rate, debt load, and retirement readiness.</p>
-              <button style={FR_BTN} onClick={() => setFirstRunStep(2)}>See What We Found</button>
+              <p style={FR_BODY}>Your 0-100 score based on 6 factors: emergency fund, debt ratio, cash flow, savings rate, debt load, and retirement readiness. It updates as your finances change.</p>
+              <button style={FR_BTN} onClick={() => setFirstRunStep(3)}>Next</button>
+              <button style={FR_BTN_GHOST} onClick={() => setFirstRunStep(1)}>Back</button>
             </div>
           )}
 
-          {/* ── Step 2: Inefficiencies Detected ───────────────── */}
-          {firstRunStep === 2 && (
+          {/* ── Step 3: Fix This (Actions) ─────────────────────── */}
+          {firstRunStep === 3 && (
             <div style={FR_CARD}>
-              <p style={FR_STEP_LABEL}>SIMULATION MODE</p>
-              <h2 style={FR_HEADING}>Issues Detected</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', margin: '1rem 0' }}>
+              <p style={FR_STEP_LABEL}>OVERVIEW TAB</p>
+              <h2 style={FR_HEADING}>Fix This</h2>
+              <p style={FR_BODY}>Your top 3 actions ranked by financial impact. Each one is specific, quantified, and actionable.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', margin: '0.75rem 0' }}>
                 {recommendations.slice(0, 3).map((rec, i) => (
                   <div key={rec.id} style={FR_ISSUE}>
                     <span style={FR_ISSUE_NUM}>{i + 1}</span>
@@ -697,65 +709,100 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-              <button style={FR_BTN} onClick={() => setFirstRunStep(3)}>See Your Allocation</button>
-              <button style={FR_BTN_GHOST} onClick={() => setFirstRunStep(1)}>Back</button>
+              <button style={FR_BTN} onClick={() => setFirstRunStep(4)}>Next</button>
+              <button style={FR_BTN_GHOST} onClick={() => setFirstRunStep(2)}>Back</button>
             </div>
           )}
 
-          {/* ── Step 3: Allocation + Interactive Slider ────────── */}
-          {firstRunStep === 3 && allocation && (
+          {/* ── Step 4: Alerts ─────────────────────────────────── */}
+          {firstRunStep === 4 && (
             <div style={FR_CARD}>
-              <p style={FR_STEP_LABEL}>SIMULATION MODE</p>
-              <h2 style={FR_HEADING}>Recommended Allocation</h2>
-              <p style={FR_BODY}>Adjust how much of your free cash goes toward savings vs debt payoff.</p>
-              <div style={{ margin: '1.5rem 0' }}>
+              <p style={FR_STEP_LABEL}>ALERTS TAB</p>
+              <h2 style={FR_HEADING}>Alerts</h2>
+              <p style={FR_BODY}>Real-time monitoring catches problems before they cost you money.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', margin: '0.75rem 0', textAlign: 'left' }}>
+                <div style={FR_READY_ROW}><span style={{ color: '#f59e0b', fontSize: '1.1rem' }}>{'\u25CF'}</span> Spending spikes vs last month</div>
+                <div style={FR_READY_ROW}><span style={{ color: '#3b82f6', fontSize: '1.1rem' }}>{'\u25CF'}</span> Bills coming due soon</div>
+                <div style={FR_READY_ROW}><span style={{ color: '#ef4444', fontSize: '1.1rem' }}>{'\u25CF'}</span> Subscription price increases</div>
+                <div style={FR_READY_ROW}><span style={{ color: '#2ab9b0', fontSize: '1.1rem' }}>{'\u25CF'}</span> New recurring charges detected</div>
+              </div>
+              <button style={FR_BTN} onClick={() => setFirstRunStep(5)}>Next</button>
+              <button style={FR_BTN_GHOST} onClick={() => setFirstRunStep(3)}>Back</button>
+            </div>
+          )}
+
+          {/* ── Step 5: Expenses ───────────────────────────────── */}
+          {firstRunStep === 5 && (
+            <div style={FR_CARD}>
+              <p style={FR_STEP_LABEL}>EXPENSES TAB</p>
+              <h2 style={FR_HEADING}>Spending Breakdown</h2>
+              <p style={FR_BODY}>See exactly where your money goes. Every transaction is categorized and tracked.</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', margin: '0.75rem 0', textAlign: 'left' }}>
+                <div style={FR_READY_ROW}><span style={FR_CHECK}>{'\u25B8'}</span> Spending by category (interactive pie chart)</div>
+                <div style={FR_READY_ROW}><span style={FR_CHECK}>{'\u25B8'}</span> Subscriptions detected automatically</div>
+                <div style={FR_READY_ROW}><span style={FR_CHECK}>{'\u25B8'}</span> Waste flags for unused services</div>
+                <div style={FR_READY_ROW}><span style={FR_CHECK}>{'\u25B8'}</span> Monthly cost tracking</div>
+              </div>
+              <button style={FR_BTN} onClick={() => setFirstRunStep(6)}>Next</button>
+              <button style={FR_BTN_GHOST} onClick={() => setFirstRunStep(4)}>Back</button>
+            </div>
+          )}
+
+          {/* ── Step 6: Allocation + Slider ────────────────────── */}
+          {firstRunStep === 6 && allocation && (
+            <div style={FR_CARD}>
+              <p style={FR_STEP_LABEL}>ALLOCATION TAB</p>
+              <h2 style={FR_HEADING}>Money Allocation</h2>
+              <p style={FR_BODY}>See your net worth, savings vs debt targets, and monthly cash flow. Try adjusting the slider below.</p>
+              <div style={{ margin: '1rem 0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#5b7a99', marginBottom: '0.5rem' }}>
                   <span>Savings: {firstRunSlider}%</span>
                   <span>Debt: {100 - firstRunSlider}%</span>
                 </div>
                 <input type="range" min={10} max={90} value={firstRunSlider} onChange={e => setFirstRunSlider(Number(e.target.value))}
                   style={{ width: '100%', accentColor: '#2ab9b0' }} />
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.75rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
                   <div style={FR_ALLOC_BOX}>
                     <span style={FR_ALLOC_LABEL}>Savings</span>
                     <span style={FR_ALLOC_VAL}>{fmt((allocation.monthly_income - allocation.monthly_expenses) * firstRunSlider / 100)}/mo</span>
                   </div>
                   <div style={FR_ALLOC_BOX}>
-                    <span style={FR_ALLOC_LABEL}>Debt Payoff</span>
+                    <span style={FR_ALLOC_LABEL}>Debt</span>
                     <span style={FR_ALLOC_VAL}>{fmt((allocation.monthly_income - allocation.monthly_expenses) * (100 - firstRunSlider) / 100)}/mo</span>
                   </div>
                 </div>
               </div>
-              <button style={FR_BTN} onClick={() => setFirstRunStep(4)}>Lock It In</button>
-              <button style={FR_BTN_GHOST} onClick={() => setFirstRunStep(2)}>Back</button>
+              <button style={FR_BTN} onClick={() => setFirstRunStep(7)}>Lock It In</button>
+              <button style={FR_BTN_GHOST} onClick={() => setFirstRunStep(5)}>Back</button>
             </div>
           )}
 
-          {/* ── Step 4: Launch ─────────────────────────────────── */}
-          {firstRunStep === 4 && (
+          {/* ── Step 7: Ready ─────────────────────────────────── */}
+          {firstRunStep === 7 && (
             <div style={FR_CARD}>
-              <p style={FR_STEP_LABEL}>SIMULATION MODE</p>
+              <p style={FR_STEP_LABEL}>YOU&rsquo;RE ALL SET</p>
               <h2 style={FR_HEADING}>Your System Is Ready</h2>
               <div style={{ margin: '1rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <div style={FR_READY_ROW}><span style={FR_CHECK}>&#10003;</span> Financial Score: {scoreData?.overall ?? 68}/100</div>
                 <div style={FR_READY_ROW}><span style={FR_CHECK}>&#10003;</span> {recommendations.length} actions identified</div>
+                <div style={FR_READY_ROW}><span style={FR_CHECK}>&#10003;</span> Alerts monitoring active</div>
+                <div style={FR_READY_ROW}><span style={FR_CHECK}>&#10003;</span> Expense tracking ready</div>
                 <div style={FR_READY_ROW}><span style={FR_CHECK}>&#10003;</span> Allocation: {firstRunSlider}% savings / {100 - firstRunSlider}% debt</div>
-                <div style={FR_READY_ROW}><span style={FR_CHECK}>&#10003;</span> Monitoring active</div>
               </div>
-              <p style={FR_BODY}>Next, answer a few quick questions so we can calculate your real score.</p>
+              <p style={FR_BODY}>Complete your profile now to get your personalized score, or explore with simulation data first.</p>
               <button style={FR_BTN} onClick={() => {
                 window.location.href = '/onboarding'
               }}>Set Up My Profile</button>
               <button style={FR_BTN_GHOST} onClick={() => {
                 setFirstRunStep(0)
-              }}>Skip for now</button>
+              }}>Explore Simulation First</button>
             </div>
           )}
 
           {/* Step indicator */}
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
-            {[1,2,3,4].map(s => (
-              <div key={s} style={{ width: 8, height: 8, borderRadius: '50%', background: s <= firstRunStep ? '#2ab9b0' : '#d1d5db' }} />
+          <div style={{ display: 'flex', gap: '0.4rem', marginTop: '1.25rem' }}>
+            {[1,2,3,4,5,6,7].map(s => (
+              <div key={s} style={{ width: 7, height: 7, borderRadius: '50%', background: s <= firstRunStep ? '#2ab9b0' : '#d1d5db', transition: 'background 0.2s' }} />
             ))}
           </div>
         </div>
@@ -2503,11 +2550,11 @@ const ALLOC_GUIDANCE: React.CSSProperties = {
 
 const FR_CONTAINER: React.CSSProperties = {
   minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
-  justifyContent: 'center', padding: '2rem 1.5rem', background: '#f0f9fb', textAlign: 'center',
+  justifyContent: 'flex-start', padding: 'clamp(1.5rem, 4vw, 3rem) clamp(0.75rem, 3vw, 1.5rem)', background: '#f0f9fb', textAlign: 'center',
 }
 const FR_CARD: React.CSSProperties = {
-  background: '#fff', borderRadius: 16, padding: '2rem 1.5rem', maxWidth: 420, width: '100%',
-  boxShadow: '0 4px 24px rgba(30,49,102,0.08)', border: '1px solid #daeef2',
+  background: '#fff', borderRadius: 16, padding: 'clamp(1.25rem, 4vw, 2rem) clamp(1rem, 3vw, 1.5rem)', maxWidth: 420, width: '100%',
+  boxShadow: '0 4px 24px rgba(30,49,102,0.08)', border: '1px solid #daeef2', boxSizing: 'border-box',
 }
 const FR_STEP_LABEL: React.CSSProperties = {
   fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', color: '#2ab9b0',
