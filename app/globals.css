@@ -155,6 +155,22 @@ body {
   .pwa-page {
     padding-bottom: calc(64px + 16px + env(safe-area-inset-bottom)) !important;
   }
+
+  /* Tighter section padding on mobile */
+  .pwa-section {
+    padding: 0.85rem !important;
+  }
+
+  /* Prevent stat cards from overflowing */
+  .pwa-stat-row {
+    gap: 0.5rem !important;
+  }
+
+  /* Pie chart wrapper fits screen */
+  .pwa-pie-wrapper {
+    flex-direction: column !important;
+    align-items: center !important;
+  }
 }
 
 /* ── Standalone PWA mode ───────────────────────────────────────────────────── */

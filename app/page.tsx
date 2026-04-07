@@ -2146,7 +2146,7 @@ const UPGRADE_CARD_STYLE: React.CSSProperties = {
   background:   'linear-gradient(160deg, #edfafa 0%, #f0f4ff 100%)',
   border:       '1.5px solid #b2e8e5',
   borderRadius: 14,
-  padding:      '1.2rem 1rem 1rem',
+  padding:      'clamp(0.85rem, 3vw, 1.2rem) clamp(0.75rem, 3vw, 1rem) clamp(0.75rem, 3vw, 1rem)',
   overflowWrap: 'break-word',
   boxSizing:    'border-box',
   maxWidth:     '100%',
@@ -2379,8 +2379,8 @@ const SNAPSHOT_BTN_OUTLINE: React.CSSProperties = {
 // ─── Financial Health Score ───────────────────────────────────────────────────
 
 const SCORE_SECTION: React.CSSProperties = {
-  background: '#ffffff', borderRadius: 12, padding: '1.5rem',
-  marginBottom: '1.25rem',
+  background: '#ffffff', borderRadius: 12, padding: 'clamp(1rem, 3vw, 1.5rem)',
+  marginBottom: '1rem',
   boxShadow: '0 1px 3px rgba(30,49,102,0.07), 0 1px 2px rgba(30,49,102,0.04)',
   border: '1px solid #daeef2',
 }
@@ -2454,7 +2454,7 @@ const SCORE_FACTOR_VAL: React.CSSProperties = {
 // ─── Allocation tab ──────────────────────────────────────────────────────────
 
 const ALLOC_NET_WORTH: React.CSSProperties = {
-  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '0.25rem',
   padding: '0.75rem 0', borderBottom: '1px solid #e5e7eb', marginBottom: '1.25rem',
 }
 const ALLOC_NW_LABEL: React.CSSProperties = {
@@ -2925,20 +2925,20 @@ const TD_BASE: React.CSSProperties = {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page:        { maxWidth: 900, margin: '0 auto', padding: '2.5rem 1.5rem', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: '#1e3166', background: '#f0f9fb', minHeight: '100vh', overflowX: 'clip' as const, boxSizing: 'border-box' as const, width: '100%' } as React.CSSProperties,
+  page:        { maxWidth: 900, margin: '0 auto', padding: 'clamp(1rem, 3vw, 2.5rem) clamp(0.75rem, 3vw, 1.5rem)', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: '#1e3166', background: '#f0f9fb', minHeight: '100vh', overflowX: 'clip' as const, boxSizing: 'border-box' as const, width: '100%' } as React.CSSProperties,
   header:      { marginBottom: '1.75rem', position: 'relative' as const },
-  logo:        { width: 'min(240px, 60vw)', height: 'auto', display: 'block', marginBottom: '-3rem', mixBlendMode: 'multiply', cursor: 'pointer' } as React.CSSProperties,
+  logo:        { width: 'min(200px, 50vw)', height: 'auto', display: 'block', marginBottom: '-2rem', mixBlendMode: 'multiply', cursor: 'pointer' } as React.CSSProperties,
   subtitle:    { fontSize: 'clamp(0.78rem, 3vw, 0.9rem)', color: '#1e3166', margin: 0, fontWeight: 900 } as React.CSSProperties,
-  section:     { background: '#ffffff', borderRadius: 12, padding: '1.5rem', marginBottom: '1.25rem', boxShadow: '0 1px 3px rgba(30,49,102,0.07), 0 1px 2px rgba(30,49,102,0.04)', border: '1px solid #daeef2', overflowWrap: 'break-word' as const },
+  section:     { background: '#ffffff', borderRadius: 12, padding: 'clamp(1rem, 3vw, 1.5rem)', marginBottom: '1rem', boxShadow: '0 1px 3px rgba(30,49,102,0.07), 0 1px 2px rgba(30,49,102,0.04)', border: '1px solid #daeef2', overflowWrap: 'break-word' as const },
   heading:     { fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.75rem', color: '#2ab9b0', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '0.35rem' },
   empty:       { color: '#8aaabb', fontSize: '0.9rem' },
   list:        { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem' },
   insightItem: { background: '#e8f7f7', border: '1px solid #b0dcd8', borderRadius: 8, padding: '0.7rem 1rem', fontSize: '0.92rem', color: '#1e3166', lineHeight: 1.5 },
   insightCta:  { background: 'none', border: '1px solid #2ab9b0', color: '#2ab9b0', borderRadius: 6, padding: '0.3rem 0.75rem', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' },
-  statRow:     { display: 'flex', gap: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap' },
-  stat:        { flex: 1, minWidth: 'min(140px, 100%)' as string, background: '#f0f9fb', borderRadius: 10, padding: '1rem 1.1rem', border: '1px solid #cce6ea' },
+  statRow:     { display: 'flex', gap: 'clamp(0.5rem, 2vw, 1rem)', marginBottom: '1rem', flexWrap: 'wrap' },
+  stat:        { flex: 1, minWidth: 'min(100px, 100%)' as string, background: '#f0f9fb', borderRadius: 10, padding: 'clamp(0.6rem, 2vw, 1rem) clamp(0.5rem, 2vw, 1.1rem)', border: '1px solid #cce6ea' },
   statLabel:   { fontSize: '0.72rem', color: '#5b7a99', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 },
-  statValue:   { fontSize: '1.45rem', fontWeight: 700, letterSpacing: '-0.02em' },
+  statValue:   { fontSize: 'clamp(1.1rem, 4vw, 1.45rem)', fontWeight: 700, letterSpacing: '-0.02em' },
   table:       { width: '100%', borderCollapse: 'collapse' },
   th:          { textAlign: 'left', padding: '0.5rem 0.75rem', background: '#f0f9fb', borderBottom: '1px solid #cce6ea', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#5b7a99' },
   td:          TD_BASE,
