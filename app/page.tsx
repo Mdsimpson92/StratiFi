@@ -220,42 +220,47 @@ export default function Dashboard() {
     track(EVENTS.POST_CHECKOUT_RETURNED, { user_plan: 'free', paywall_enabled: true })
     setCheckoutPhase('polling')
 
-    // Delays (ms) before each polling attempt. Five attempts; first is immediate.
-    // Fires at t=0, t=2s, t=4s, t=7s, t=10s — stops the moment is_pro is true.
-    const DELAYS_MS = [0, 2_000, 2_000, 3_000, 3_000]
     let cancelled = false
 
-    async function pollForProStatus() {
-      for (let attempt = 0; attempt < DELAYS_MS.length; attempt++) {
+    async function syncProStatus() {
+      if (cancelled) return
+
+      try {
+        // Call sync endpoint — checks Stripe API directly, no webhook needed
+        const syncRes = await fetch('/api/stripe/sync', { method: 'POST' })
+        const syncData = await syncRes.json() as { is_pro?: boolean; synced?: boolean; paywall_enabled?: boolean }
+
+        if (syncData?.is_pro === true) {
+          setIsPro(true)
+          setPaywallEnabled(syncData.paywall_enabled ?? false)
+          setCheckoutPhase('confirmed')
+          track(EVENTS.PRO_STATE_CONFIRMED, {
+            user_plan:       'pro',
+            paywall_enabled: syncData.paywall_enabled ?? false,
+            source_surface:  'post_checkout_sync',
+            attempt:          1,
+          })
+          setTimeout(() => setCheckoutPhase('idle'), 7_000)
+          return
+        }
+
+        // Sync didn't find it yet — try once more after 2s
+        if (cancelled) return
+        await new Promise<void>(resolve => setTimeout(resolve, 2_000))
         if (cancelled) return
 
-        if (DELAYS_MS[attempt] > 0) {
-          await new Promise<void>(resolve => setTimeout(resolve, DELAYS_MS[attempt]))
-        }
-        if (cancelled) return
+        const retryRes = await fetch('/api/stripe/sync', { method: 'POST' })
+        const retryData = await retryRes.json() as { is_pro?: boolean; paywall_enabled?: boolean }
 
-        try {
-          const res    = await fetch('/api/stripe/subscription')
-          const stripe = await res.json() as { is_pro?: boolean; paywall_enabled?: boolean }
-
-          if (stripe?.is_pro === true) {
-            // Webhook landed — Pro status confirmed
-            setIsPro(true)
-            setPaywallEnabled(stripe.paywall_enabled ?? false)
-            setCheckoutPhase('confirmed')
-            track(EVENTS.PRO_STATE_CONFIRMED, {
-              user_plan:       'pro',
-              paywall_enabled: stripe.paywall_enabled ?? false,
-              source_surface:  'post_checkout_poll',
-              attempt:          attempt + 1,
-            })
-            setTimeout(() => setCheckoutPhase('idle'), 7_000)
-            return
-          }
-          // is_pro still false — webhook not yet processed, continue polling
-        } catch {
-          // Network error on this attempt — treat as not-yet-confirmed, keep going
+        if (retryData?.is_pro === true) {
+          setIsPro(true)
+          setPaywallEnabled(retryData.paywall_enabled ?? false)
+          setCheckoutPhase('confirmed')
+          setTimeout(() => setCheckoutPhase('idle'), 7_000)
+          return
         }
+      } catch {
+        // Network error — fall through to unconfirmed
       }
 
       // Exhausted all attempts without confirmation.
@@ -266,9 +271,9 @@ export default function Dashboard() {
       }
     }
 
-    pollForProStatus()
+    syncProStatus()
 
-    // Cleanup: if this effect re-runs or the component unmounts, abandon the poll
+    // Cleanup: if this effect re-runs or the component unmounts, abandon
     return () => { cancelled = true }
   }, [])
 
@@ -530,7 +535,6 @@ export default function Dashboard() {
       if (data.url) window.location.href = data.url
       else {
         console.error('[checkout] no redirect URL returned:', JSON.stringify(data))
-        alert('Checkout error: ' + (data.error || 'Unknown error'))
         setUpgradeError(true)
       }
     } catch {
