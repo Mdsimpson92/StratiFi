@@ -1310,6 +1310,15 @@ export default function Dashboard() {
                 )}
               </div>
               <p style={SCORE_SUBTITLE}>Financial Health Score</p>
+              <p style={SCORE_JUDGMENT}>
+                {scoreData.overall >= 80
+                  ? 'Your finances are well-optimized. Focus on maintaining momentum.'
+                  : scoreData.overall >= 65
+                    ? 'Solid foundation with room to improve. Follow the actions below to push higher.'
+                    : scoreData.overall >= 50
+                      ? 'Several areas need attention. Completing 2-3 actions could significantly improve your position.'
+                      : 'Immediate action needed. Start with the top recommendation below.'}
+              </p>
               {canAccessPro ? (
                 <div style={SCORE_FACTORS}>
                   <ScoreFactor label="Emergency Fund" value={scoreData.emergency_fund_score} />
@@ -1396,6 +1405,19 @@ export default function Dashboard() {
               <Stat label="Total Expenses" value={fmt(cashflow.total_outflow)} color="#dc2626" />
               <Stat label="Net"            value={fmt(cashflow.net)}           color={cashflow.net >= 0 ? '#0d7878' : '#dc2626'} />
             </div>
+            {/* Judgment layer */}
+            {cashflow.total_inflow > 0 && (
+              <div style={JUDGMENT_BOX}>
+                {(() => {
+                  const spendRatio = cashflow.total_outflow / cashflow.total_inflow
+                  const pct = Math.round(spendRatio * 100)
+                  if (spendRatio > 1) return <><span style={JUDGMENT_RED}>{'\u26A0'} You are spending more than you earn.</span> Cut {fmt(cashflow.total_outflow - cashflow.total_inflow)} to break even.</>
+                  if (spendRatio > 0.85) return <><span style={JUDGMENT_AMBER}>{'\u26A0'} {pct}% of income goes to expenses.</span> Aim for under 80% to build a buffer.</>
+                  if (spendRatio > 0.7) return <><span style={JUDGMENT_GREEN}>{pct}% of income goes to expenses.</span> Solid, but there&rsquo;s room to optimize.</>
+                  return <><span style={JUDGMENT_GREEN}>{pct}% of income goes to expenses.</span> Strong discipline. Keep directing the surplus to your goals.</>
+                })()}
+              </div>
+            )}
             {cashflow?.by_month?.length > 0 && canAccessPro && (
               <div className="table-scroll-wrap"><div className="table-scroll"><table style={styles.table}>
                 <thead>
@@ -1447,9 +1469,11 @@ export default function Dashboard() {
               <p style={{ margin: '0 0 0.4rem', fontSize: '0.85rem', color: '#374151', lineHeight: 1.5 }}>{rec.explanation}</p>
               <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 600, color: REC_ACTION_COLORS[rec.priority] }}>{'\u2192'} {rec.suggested_action}</p>
               {rec.savings_amount != null && rec.savings_amount > 0 && (
-                <p style={{ margin: '0.35rem 0 0', fontSize: '0.78rem', color: '#059669', fontWeight: 600 }}>
-                  Potential savings: {fmt(rec.savings_amount)}/mo ({fmt(rec.savings_amount * 12)}/yr)
-                </p>
+                <div style={IMPACT_BOX}>
+                  <span style={IMPACT_LABEL}>IF YOU DO THIS:</span>
+                  <span style={IMPACT_VALUE}>Save {fmt(rec.savings_amount)}/mo &middot; {fmt(rec.savings_amount * 12)}/yr</span>
+                  {scoreData && <span style={IMPACT_SCORE}>Estimated score impact: +{Math.min(8, Math.max(2, Math.round(rec.savings_amount / 20)))}</span>}
+                </div>
               )}
             </div>
           ))}
@@ -1618,10 +1642,18 @@ export default function Dashboard() {
           <p style={styles.empty}>No recurring subscriptions detected yet. Upload 2+ months of data to detect patterns.</p>
         ) : (
           <>
-            {/* Total cost stat */}
+            {/* Total cost stat with judgment */}
             <div style={styles.subTotalRow} className="pwa-subtotal-row">
               <span style={styles.subTotalLabel}>Est. monthly subscription spend</span>
               <span style={styles.subTotalValue}>{fmt(subData.total_monthly_cost)}</span>
+            </div>
+            <div style={JUDGMENT_BOX}>
+              <span style={subData.total_monthly_cost > 200 ? JUDGMENT_RED : subData.total_monthly_cost > 100 ? JUDGMENT_AMBER : JUDGMENT_GREEN}>
+                {fmt(subData.total_monthly_cost * 12)}/year on subscriptions.
+              </span>
+              {subData.waste_flags.length > 0
+                ? ` Canceling flagged services could save ${fmt(subData.waste_flags.reduce((s, f) => s + (subData.subscriptions.find(x => x.normalized_merchant === f.merchant)?.estimated_monthly_cost ?? 0), 0))}/mo.`
+                : ' All subscriptions appear active.'}
             </div>
 
             {/* Waste flags */}
@@ -2608,6 +2640,39 @@ const FR_READY_ROW: React.CSSProperties = {
 }
 const FR_CHECK: React.CSSProperties = {
   color: '#059669', fontWeight: 700, fontSize: '1rem',
+}
+
+// ─── Judgment layer ──────────────────────────────────────────────────────────
+
+const JUDGMENT_BOX: React.CSSProperties = {
+  margin: '0.5rem 0 0', padding: '0.6rem 0.85rem', borderRadius: 8,
+  background: '#f8fafc', border: '1px solid #e5e7eb',
+  fontSize: '0.82rem', color: '#374151', lineHeight: 1.5,
+}
+const JUDGMENT_GREEN: React.CSSProperties = { color: '#059669', fontWeight: 600 }
+const JUDGMENT_AMBER: React.CSSProperties = { color: '#d97706', fontWeight: 600 }
+const JUDGMENT_RED: React.CSSProperties = { color: '#dc2626', fontWeight: 600 }
+
+const SCORE_JUDGMENT: React.CSSProperties = {
+  fontSize: '0.82rem', color: '#374151', margin: '0.25rem 0 0.75rem', lineHeight: 1.5,
+}
+
+// ─── Impact projection ──────────────────────────────────────────────────────
+
+const IMPACT_BOX: React.CSSProperties = {
+  margin: '0.5rem 0 0', padding: '0.5rem 0.75rem', borderRadius: 8,
+  background: '#f0fdf4', border: '1px solid #bbf7d0',
+  display: 'flex', flexDirection: 'column', gap: '0.15rem',
+}
+const IMPACT_LABEL: React.CSSProperties = {
+  fontSize: '0.68rem', fontWeight: 700, color: '#059669', textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+}
+const IMPACT_VALUE: React.CSSProperties = {
+  fontSize: '0.85rem', fontWeight: 700, color: '#065f46',
+}
+const IMPACT_SCORE: React.CSSProperties = {
+  fontSize: '0.75rem', color: '#059669',
 }
 
 const ACTION_NUMBER: React.CSSProperties = {
