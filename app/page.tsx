@@ -621,8 +621,10 @@ export default function Dashboard() {
         setScoreData(sc?.score ?? null)
         setAllocation(alloc?.allocation ?? null)
         setDataLoadedAt(new Date())
-        // Trigger first-run guided experience for ALL new users
-        if (typeof window !== 'undefined' && !localStorage.getItem('stratifi_onboarding_done')) {
+        // Trigger first-run guided experience for ALL new users (per-user key)
+        const userId = clerkUser?.id ?? ''
+        const onboardingKey = `stratifi_onboarding_done_${userId}`
+        if (typeof window !== 'undefined' && userId && !localStorage.getItem(onboardingKey)) {
           setFirstRunStep(1)
         }
       })
@@ -742,11 +744,17 @@ export default function Dashboard() {
                 <div style={FR_READY_ROW}><span style={FR_CHECK}>&#10003;</span> Allocation: {firstRunSlider}% savings / {100 - firstRunSlider}% debt</div>
                 <div style={FR_READY_ROW}><span style={FR_CHECK}>&#10003;</span> Monitoring active</div>
               </div>
-              <p style={FR_BODY}>This is a simulation. Connect your real data anytime to personalize everything.</p>
+              <p style={FR_BODY}>Next, answer a few quick questions so we can calculate your real score.</p>
               <button style={FR_BTN} onClick={() => {
-                localStorage.setItem('stratifi_onboarding_done', 'true')
+                const uid = clerkUser?.id ?? ''
+                localStorage.setItem(`stratifi_onboarding_done_${uid}`, 'true')
+                window.location.href = '/onboarding'
+              }}>Set Up My Profile</button>
+              <button style={FR_BTN_GHOST} onClick={() => {
+                const uid = clerkUser?.id ?? ''
+                localStorage.setItem(`stratifi_onboarding_done_${uid}`, 'true')
                 setFirstRunStep(0)
-              }}>Launch Control Panel</button>
+              }}>Skip for now</button>
             </div>
           )}
 
