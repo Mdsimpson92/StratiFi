@@ -105,8 +105,12 @@ export async function POST(req: Request): Promise<Response> {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  if (await chatLimiter.check(userId)) {
-    return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+  try {
+    if (await chatLimiter.check(userId)) {
+      return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
+    }
+  } catch {
+    // Rate limiter failed — allow the request through rather than blocking
   }
 
   const body = await req.json().catch(() => null)
