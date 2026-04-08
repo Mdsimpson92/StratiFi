@@ -110,7 +110,7 @@ export async function POST(req: Request): Promise<Response> {
       return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
     }
   } catch {
-    // Rate limiter failed — allow the request through rather than blocking
+    // Redis unavailable — skip rate limiting rather than blocking the user
   }
 
   const body = await req.json().catch(() => null)
