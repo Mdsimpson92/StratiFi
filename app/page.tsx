@@ -135,6 +135,13 @@ interface ScoreData {
   calculated_at:        string
 }
 
+interface AIAnalysis {
+  situation: { summary: string; score_explanation: string; key_metrics: { label: string; value: string; explanation: string }[] }
+  problems:  { type: string; title: string; detail: string; monthly_impact: number | null; severity: string }[]
+  actions:   { priority: number; verb: string; instruction: string; expected_savings: number | null; expected_score_impact: string | null; timeframe: string }[]
+  disclaimer: string
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (n: number | null | undefined) =>
@@ -159,6 +166,8 @@ export default function Dashboard() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [scoreData, setScoreData]             = useState<ScoreData | null>(null)
   const [allocation, setAllocation]           = useState<AllocationData | null>(null)
+  const [aiAnalysis, setAiAnalysis]           = useState<AIAnalysis | null>(null)
+  const [aiLoading, setAiLoading]             = useState(false)
   const [isPro, setIsPro]                     = useState(false)
   const [isDemo, setIsDemo]                   = useState(false)
   const [paywallEnabled, setPaywallEnabled]   = useState(false)
@@ -642,6 +651,14 @@ export default function Dashboard() {
         }
       })
       .catch(() => { /* non-critical — silently ignore */ })
+
+    // Trigger AI analysis after data loads
+    setAiLoading(true)
+    fetch('/api/ai/stratifi')
+      .then(r => r.json())
+      .then(data => { if (data.analysis) setAiAnalysis(data.analysis) })
+      .catch(() => { /* non-critical */ })
+      .finally(() => setAiLoading(false))
   }, [loading])
 
   return (
@@ -1279,6 +1296,77 @@ export default function Dashboard() {
               </p>
             </div>
           )}
+        </section>
+      )}
+
+      {/* ── AI Analysis ──────────────────────────────────────────────────── */}
+      {aiLoading && (
+        <section style={styles.section} className="pwa-section">
+          <h2 style={styles.heading}>Analyzing your finances...</h2>
+          <div className="skeleton" style={{ height: 80, marginBottom: '0.5rem' }} />
+          <div className="skeleton" style={{ height: 60 }} />
+        </section>
+      )}
+      {aiAnalysis && !aiLoading && (
+        <section style={styles.section} className="pwa-section">
+          <h2 style={styles.heading}>What&rsquo;s Happening</h2>
+          <p style={{ fontSize: '0.88rem', color: '#1e3166', lineHeight: 1.6, margin: '0 0 1rem' }}>{aiAnalysis.situation.summary}</p>
+          {scoreData && (
+            <p style={{ fontSize: '0.82rem', color: '#5b7a99', lineHeight: 1.5, margin: '0 0 1rem', background: '#f0f9fb', border: '1px solid #cce6ea', borderRadius: 8, padding: '0.65rem 0.85rem' }}>
+              {aiAnalysis.situation.score_explanation}
+            </p>
+          )}
+          {aiAnalysis.situation.key_metrics.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {aiAnalysis.situation.key_metrics.map((m, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0.4rem 0', borderBottom: '1px solid #f0f0f0', flexWrap: 'wrap', gap: '0.25rem' }}>
+                  <span style={{ fontSize: '0.82rem', color: '#5b7a99', fontWeight: 600 }}>{m.label}: <strong style={{ color: '#1e3166' }}>{m.value}</strong></span>
+                  <span style={{ fontSize: '0.75rem', color: '#8aaabb' }}>{m.explanation}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {aiAnalysis && aiAnalysis.problems.length > 0 && !aiLoading && (
+        <section style={styles.section} className="pwa-section">
+          <h2 style={styles.heading}>What&rsquo;s Wrong</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+            {aiAnalysis.problems.map((p, i) => (
+              <div key={i} style={{ background: p.severity === 'high' ? '#fef2f2' : p.severity === 'medium' ? '#fff8f0' : '#f0f9fb', border: `1px solid ${p.severity === 'high' ? '#fca5a5' : p.severity === 'medium' ? '#fde8d0' : '#cce6ea'}`, borderRadius: 10, padding: '0.75rem 1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1e3166' }}>{p.title}</span>
+                  {p.monthly_impact != null && <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#dc2626' }}>{fmt(p.monthly_impact)}/mo</span>}
+                </div>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: '#374151', lineHeight: 1.5 }}>{p.detail}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {aiAnalysis && aiAnalysis.actions.length > 0 && !aiLoading && (
+        <section style={styles.section} className="pwa-section">
+          <h2 style={styles.heading}>What To Do Next</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+            {aiAnalysis.actions.map((a, i) => (
+              <div key={i} style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '0.75rem 1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: '50%', background: '#059669', color: '#fff', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>{a.priority}</span>
+                  <div>
+                    <p style={{ margin: '0 0 0.2rem', fontWeight: 700, fontSize: '0.88rem', color: '#1e3166' }}>{a.instruction}</p>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      {a.expected_savings != null && <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600 }}>Save {fmt(a.expected_savings)}/mo</span>}
+                      {a.expected_score_impact && <span style={{ fontSize: '0.75rem', color: '#2ab9b0', fontWeight: 600 }}>{a.expected_score_impact}</span>}
+                      <span style={{ fontSize: '0.75rem', color: '#8aaabb' }}>{a.timeframe}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p style={{ margin: '0.75rem 0 0', fontSize: '0.72rem', color: '#9ca3af', lineHeight: 1.5 }}>{aiAnalysis.disclaimer}</p>
         </section>
       )}
 
