@@ -199,4 +199,155 @@ export const KB: KBEntry[] = [
     answer:   "Transaction categories come from Plaid based on merchant data. Manual recategorization isn't available yet — this is on the roadmap. If a category is significantly wrong, let us know via the 'Contact Support' button so it can be prioritized.",
     shouldEscalate: false,
   },
+
+  // ── Financial Health Score ──────────────────────────────────────────────────
+  {
+    id:       'score_what',
+    category: 'general',
+    keywords: ['score', 'financial health', 'what is', 'how', 'work'],
+    answer:   'Your Financial Health Score is a 0–100 rating based on 6 measurable factors: emergency fund coverage (25%), debt-to-income ratio (20%), cash flow margin (20%), savings rate (15%), total debt load (10%), and retirement readiness (10%). Each factor is scored individually, then weighted to produce your overall score. Higher is better.',
+    shouldEscalate: false,
+  },
+  {
+    id:       'score_improve',
+    category: 'general',
+    keywords: ['improve', 'raise', 'increase', 'score', 'higher'],
+    answer:   'To improve your score, focus on the Top 3 Actions on your Overview tab — they are ranked by impact. The most common ways to improve: build your emergency fund to 3+ months of expenses, reduce your debt-to-income ratio below 15%, and increase your monthly free cash flow.',
+    shouldEscalate: false,
+  },
+  {
+    id:       'score_update',
+    category: 'general',
+    keywords: ['score', 'update', 'change', 'recalculate', 'refresh'],
+    answer:   'Your score updates whenever you update your financial profile. Go to the onboarding page to update your income, expenses, debt, and savings. The score will recalculate immediately.',
+    shouldEscalate: false,
+  },
+
+  // ── Demo Mode ──────────────────────────────────────────────────────────────
+  {
+    id:       'demo_what',
+    category: 'general',
+    keywords: ['demo', 'sample', 'fake', 'simulated', 'test data'],
+    answer:   'Demo mode shows simulated financial data so you can explore all features before connecting your own accounts. To switch to real data, upload a CSV from your bank or connect your bank account via Plaid. Demo mode turns off automatically once you add real data.',
+    shouldEscalate: false,
+  },
+  {
+    id:       'demo_exit',
+    category: 'general',
+    keywords: ['exit', 'leave', 'demo', 'real data', 'stop demo'],
+    answer:   'To exit demo mode, either upload a bank CSV (go to the Transactions page) or connect your bank account (tap Connect Bank in the demo banner). Once real transactions are loaded, demo mode turns off automatically and your dashboard shows your actual financial data.',
+    shouldEscalate: false,
+  },
+
+  // ── Allocation ─────────────────────────────────────────────────────────────
+  {
+    id:       'allocation_what',
+    category: 'general',
+    keywords: ['allocation', 'net worth', 'distribution', 'money', 'where'],
+    answer:   'The Allocation tab shows how your money is distributed across emergency fund, retirement savings, and debt — with clear targets for each. It also shows your monthly cash flow (income vs expenses) and provides guidance on where to direct your surplus.',
+    shouldEscalate: false,
+  },
+  {
+    id:       'allocation_target',
+    category: 'general',
+    keywords: ['target', 'goal', 'how much', 'should', 'save', 'emergency fund'],
+    answer:   'StratiFi sets targets based on financial best practices: Emergency Fund target is 6 months of expenses. Retirement target is based on your age and income (roughly 1x salary by 30, 3x by 40). Debt target is always $0. Your Allocation tab shows progress toward each.',
+    shouldEscalate: false,
+  },
+
+  // ── CSV Upload ─────────────────────────────────────────────────────────────
+  {
+    id:       'csv_how',
+    category: 'general',
+    keywords: ['upload', 'csv', 'file', 'import', 'transactions'],
+    answer:   'Go to the Transactions page (link in the top nav or demo banner). Click the upload area and select a CSV file exported from your bank. StratiFi auto-detects formats from Chase, Bank of America, Capital One, Wells Fargo, Mint, and others. Transactions are categorized automatically.',
+    shouldEscalate: false,
+  },
+  {
+    id:       'csv_format',
+    category: 'technical',
+    keywords: ['csv', 'format', 'template', 'columns', 'headers'],
+    answer:   'StratiFi accepts CSV files with columns for date, description/merchant, and amount. Most bank exports work automatically. If your file has separate debit/credit columns, that works too. The system auto-detects the format — no template needed.',
+    shouldEscalate: false,
+  },
+  {
+    id:       'csv_error',
+    category: 'technical',
+    keywords: ['upload', 'error', 'failed', 'csv', 'processing'],
+    answer:   "If your CSV upload fails, check that: 1) The file is a .csv (not .xlsx or .pdf), 2) It has valid dates and amounts, 3) It's under 5MB. Try downloading a fresh export from your bank. If it still fails, use the 'Contact Support' button with the error message.",
+    shouldEscalate: false,
+  },
+
+  // ── Top Actions ────────────────────────────────────────────────────────────
+  {
+    id:       'actions_what',
+    category: 'general',
+    keywords: ['actions', 'top actions', 'what should i do', 'recommendations'],
+    answer:   'Top Actions are the 3 highest-impact things you can do right now to improve your finances. They are ranked by urgency and based on your actual spending data and financial profile. Each action is specific and quantified — not generic advice like "spend less."',
+    shouldEscalate: false,
+  },
+
+  // ── Expenses ───────────────────────────────────────────────────────────────
+  {
+    id:       'expenses_pie',
+    category: 'general',
+    keywords: ['pie chart', 'spending', 'category', 'breakdown', 'expenses'],
+    answer:   'The Expenses tab shows your spending broken down by category in a pie chart. Tap any slice to see the total spent, number of transactions, and average amount for that category (Pro feature). Below the chart, you can see detected subscriptions and waste flags.',
+    shouldEscalate: false,
+  },
+  {
+    id:       'expenses_waste',
+    category: 'general',
+    keywords: ['waste', 'unused', 'subscription', 'cancel', 'saving'],
+    answer:   'StratiFi flags subscriptions as potential waste when no charge has been detected in 45+ days, or when you have duplicate services (like multiple streaming or cloud storage subscriptions). Review these in the Expenses tab under "Subscriptions & Money Leaks."',
+    shouldEscalate: false,
+  },
+
+  // ── General app ────────────────────────────────────────────────────────────
+  {
+    id:       'app_what',
+    category: 'general',
+    keywords: ['what', 'stratifi', 'app', 'does', 'about'],
+    answer:   'StratiFi is a financial health dashboard that helps you understand your full financial picture. It calculates a Financial Health Score, identifies waste, generates clear actions to improve your finances, and tracks your progress. Connect your bank or upload transactions to get started.',
+    shouldEscalate: false,
+  },
+  {
+    id:       'app_free_vs_pro',
+    category: 'billing',
+    keywords: ['free', 'pro', 'difference', 'features', 'plan'],
+    answer:   'Free tier includes: your overall score, 1 top action, cashflow summary, spending pie chart, subscription list, and net worth. Pro unlocks: full score breakdown, all 3 actions, alert details, cashflow monthly table, category drill-down, waste flags, allocation targets, and upcoming charges.',
+    shouldEscalate: false,
+  },
+  {
+    id:       'app_mobile',
+    category: 'general',
+    keywords: ['mobile', 'phone', 'app', 'download', 'ios', 'android'],
+    answer:   'StratiFi works as a web app on any device. On iPhone/iPad, open the site in Safari, tap the Share button, then "Add to Home Screen" to install it like a native app. On Android, tap the menu button and "Install app." No app store download needed.',
+    shouldEscalate: false,
+  },
+
+  // ── Onboarding ─────────────────────────────────────────────────────────────
+  {
+    id:       'onboarding_what',
+    category: 'general',
+    keywords: ['onboarding', 'profile', 'setup', 'complete', 'get started'],
+    answer:   'The onboarding profile collects your income, expenses, debt, savings, and financial goals across 5 quick steps. This data is used to calculate your Financial Health Score and generate personalized recommendations. You can update it anytime.',
+    shouldEscalate: false,
+  },
+
+  // ── Contact / Human ────────────────────────────────────────────────────────
+  {
+    id:       'contact_human',
+    category: 'general',
+    keywords: ['human', 'person', 'talk', 'real', 'speak', 'agent', 'someone'],
+    answer:   "I'll connect you with our support team right away. Please use the 'Contact Support' button below to send a message directly to our team.",
+    shouldEscalate: true,
+  },
+  {
+    id:       'contact_help',
+    category: 'general',
+    keywords: ['help', 'support', 'contact', 'reach', 'email'],
+    answer:   "I'm here to help! Ask me about your score, actions, expenses, alerts, billing, or how to use any feature. If I can't answer your question, I'll connect you with our support team directly.",
+    shouldEscalate: false,
+  },
 ]
