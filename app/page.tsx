@@ -738,18 +738,6 @@ export default function Dashboard() {
           {!isMobile && <span style={{ marginLeft: '0.35rem' }}>Share</span>}
         </button>
 
-        {(
-          <button
-            style={activeTab === 'settings' ? styles.gearBtnActive : styles.gearBtn}
-            onClick={() => setActiveTab(activeTab === 'settings' ? 'overview' : 'settings')}
-            title="Settings"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-          </button>
-        )}
         {isPro && !isDemo && (
           <span style={styles.proBadge}>Pro</span>
         )}
@@ -1027,13 +1015,6 @@ export default function Dashboard() {
             )}
           </div>
         )}
-        <button
-          style={styles.btnDanger}
-          onClick={() => signOut({ redirectUrl: '/sign-in' })}
-        >
-          Sign out
-        </button>
-
         <p style={DISCLAIMER_TEXT}>
           This app provides financial insights for informational purposes only and does not constitute
           financial, investment, or legal advice.
@@ -1786,6 +1767,16 @@ export default function Dashboard() {
       <SupportPanel userPlan={isPro ? 'pro' : 'free'} paywallEnabled={paywallEnabled} />
 
       {/* ── Bottom navigation (mobile only) ──────────────────────────────── */}
+      {/* ── Sign Out ─────────────────────────────────────────────────── */}
+      <div style={SIGNOUT_WRAP}>
+        <button
+          style={SIGNOUT_BTN}
+          onClick={() => signOut({ redirectUrl: '/sign-in' })}
+        >
+          Sign out
+        </button>
+      </div>
+
       <nav className="bottom-nav">
         {NAV_TABS.map(tab => (
           <button
@@ -2478,6 +2469,18 @@ const ALLOC_BAR_FILL: React.CSSProperties = {
 const ALLOC_GUIDANCE: React.CSSProperties = {
   margin: '0.75rem 0 0', fontSize: '0.85rem', color: '#374151', lineHeight: 1.5,
   background: '#f0f9fb', border: '1px solid #cce6ea', borderRadius: 8, padding: '0.75rem 1rem',
+}
+
+// ─── Sign Out ────────────────────────────────────────────────────────────────
+
+const SIGNOUT_WRAP: React.CSSProperties = {
+  textAlign: 'center', padding: '1.5rem 0 2rem',
+}
+
+const SIGNOUT_BTN: React.CSSProperties = {
+  background: 'none', border: '1px solid #fca5a5', color: '#b91c1c',
+  borderRadius: 8, padding: '0.55rem 1.5rem',
+  fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer',
 }
 
 // ─── Guided Tour ─────────────────────────────────────────────────────────────
