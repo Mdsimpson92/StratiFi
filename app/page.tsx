@@ -135,13 +135,6 @@ interface ScoreData {
   calculated_at:        string
 }
 
-interface AIAnalysis {
-  situation: { summary: string; score_explanation: string; key_metrics: { label: string; value: string; explanation: string }[] }
-  problems:  { type: string; title: string; detail: string; monthly_impact: number | null; severity: string }[]
-  actions:   { priority: number; verb: string; instruction: string; expected_savings: number | null; expected_score_impact: string | null; timeframe: string }[]
-  disclaimer: string
-}
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmt = (n: number | null | undefined) =>
@@ -166,10 +159,9 @@ export default function Dashboard() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [scoreData, setScoreData]             = useState<ScoreData | null>(null)
   const [allocation, setAllocation]           = useState<AllocationData | null>(null)
-  const [aiAnalysis, setAiAnalysis]           = useState<AIAnalysis | null>(null)
-  const [aiLoading, setAiLoading]             = useState(false)
   const [isPro, setIsPro]                     = useState(false)
   const [isDemo, setIsDemo]                   = useState(false)
+  const [tourStep, setTourStep]               = useState<number | null>(null)
   const [paywallEnabled, setPaywallEnabled]   = useState(false)
   const [upgrading, setUpgrading]             = useState(false)
   const [linkToken, setLinkToken]             = useState<string | null>(null)
@@ -180,8 +172,6 @@ export default function Dashboard() {
   const [activeTab, setActiveTab]             = useState<'overview' | 'alerts' | 'subscriptions' | 'allocation' | 'settings'>('overview')
   const [isMobile, setIsMobile]               = useState(false)
   const [showIntro, setShowIntro]             = useState(false)
-  const [firstRunStep, setFirstRunStep]       = useState(0)  // 0 = not active, 1-4 = guided steps
-  const [firstRunSlider, setFirstRunSlider]   = useState(50)
   const [showDisableConfirm, setShowDisableConfirm] = useState(false)
   // 'idle'        — no post-checkout flow active
   // 'polling'     — detected ?upgraded=true, verifying Pro status with Stripe
@@ -630,10 +620,6 @@ export default function Dashboard() {
         setScoreData(sc?.score ?? null)
         setAllocation(alloc?.allocation ?? null)
         setDataLoadedAt(new Date())
-        // Trigger first-run guided experience for ALL new users
-        if (typeof window !== 'undefined' && !localStorage.getItem('stratifi_onboarding_done')) {
-          setFirstRunStep(1)
-        }
       })
       .catch(() => setError('Failed to load dashboard data.'))
       .finally(() => setLoading(false))
@@ -651,183 +637,67 @@ export default function Dashboard() {
         }
       })
       .catch(() => { /* non-critical — silently ignore */ })
-
-    // Trigger AI analysis after data loads
-    setAiLoading(true)
-    fetch('/api/ai/stratifi')
-      .then(r => r.json())
-      .then(data => { if (data.analysis) setAiAnalysis(data.analysis) })
-      .catch(() => { /* non-critical */ })
-      .finally(() => setAiLoading(false))
   }, [loading])
+
+  // ── Guided tour — shows once for new users ─────────────────────────────────
+  useEffect(() => {
+    if (loading || showIntro) return
+    if (typeof window === 'undefined') return
+    if (localStorage.getItem('stratifi_tour_done')) return
+    // Small delay so the dashboard renders first
+    const timer = setTimeout(() => setTourStep(0), 1500)
+    return () => clearTimeout(timer)
+  }, [loading, showIntro])
+
+  function advanceTour() {
+    if (tourStep === null) return
+    if (tourStep >= TOUR_STEPS.length - 1) {
+      setTourStep(null)
+      localStorage.setItem('stratifi_tour_done', '1')
+    } else {
+      setTourStep(tourStep + 1)
+    }
+  }
+
+  function skipTour() {
+    setTourStep(null)
+    localStorage.setItem('stratifi_tour_done', '1')
+  }
 
   return (
     <main style={styles.page} className="pwa-page">
+      {/* ── Guided Tour Overlay ──────────────────────────────────────── */}
+      {tourStep !== null && tourStep < TOUR_STEPS.length && (
+        <div style={TOUR_OVERLAY} onClick={skipTour}>
+          <div style={TOUR_CARD} onClick={e => e.stopPropagation()}>
+            <div style={TOUR_STEP_INDICATOR}>
+              {TOUR_STEPS.map((_, i) => (
+                <div key={i} style={{ ...TOUR_DOT, background: i === tourStep ? '#2ab9b0' : '#d1d5db' }} />
+              ))}
+            </div>
+            <div style={TOUR_ICON}>{TOUR_STEPS[tourStep].icon}</div>
+            <h3 style={TOUR_TITLE}>{TOUR_STEPS[tourStep].title}</h3>
+            <p style={TOUR_DESC}>{TOUR_STEPS[tourStep].description}</p>
+            <div style={TOUR_ACTIONS}>
+              <button style={TOUR_SKIP_BTN} onClick={skipTour}>Skip</button>
+              <button style={TOUR_NEXT_BTN} onClick={advanceTour}>
+                {tourStep === TOUR_STEPS.length - 1 ? 'Get Started' : 'Next'}
+              </button>
+            </div>
+            <p style={TOUR_COUNTER}>{tourStep + 1} of {TOUR_STEPS.length}</p>
+          </div>
+        </div>
+      )}
+
       {showIntro ? (
         <div style={styles.introScreen}>
           <img src="/stratifi-logo.png" alt="StratiFi" style={styles.introLogo} />
-          <p style={styles.introTagline}>Your financial operating system.</p>
+          <p style={styles.introTagline}>Where Strategy meets Finance.</p>
         </div>
       ) : loading ? (
         <SkeletonDashboard />
       ) : error ? (
         <div style={styles.center}>{error}</div>
-      ) : firstRunStep > 0 && firstRunStep <= 7 ? (
-        <div style={FR_CONTAINER}>
-          <img src="/stratifi-logo.png" alt="StratiFi" style={{ width: 140, height: 'auto', marginBottom: '1rem', mixBlendMode: 'multiply' as const }} />
-
-          {/* ── Step 1: Welcome + Score ────────────────────────── */}
-          {firstRunStep === 1 && (
-            <div style={FR_CARD}>
-              <p style={FR_STEP_LABEL}>STEP 1 OF 7 &middot; FINANCIAL SCORE</p>
-              <h2 style={FR_HEADING}>Your Financial Health Score</h2>
-              <div style={{ position: 'relative', width: 160, height: 160, margin: '1.5rem auto' }}>
-                <svg viewBox="0 0 120 120" width={160} height={160}>
-                  <circle cx="60" cy="60" r={52} fill="none" stroke="#e5e7eb" strokeWidth="9" />
-                  <circle cx="60" cy="60" r={52} fill="none" stroke={scoreData && scoreData.overall >= 65 ? '#2ab9b0' : '#f59e0b'} strokeWidth="9"
-                    strokeDasharray={2 * Math.PI * 52} strokeDashoffset={2 * Math.PI * 52 * (1 - (scoreData?.overall ?? 68) / 100)}
-                    strokeLinecap="round" transform="rotate(-90 60 60)" style={{ transition: 'stroke-dashoffset 1s ease-out' }} />
-                </svg>
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontSize: '2.5rem', fontWeight: 800, color: '#1e3166' }}>{scoreData?.overall ?? 68}</span>
-                </div>
-              </div>
-              <p style={FR_LABEL}>{scoreData?.label ?? 'Good'}</p>
-              <p style={FR_BODY}>This is your overall financial health. It is calculated from 6 real factors: emergency fund, debt ratio, cash flow, savings rate, debt load, and retirement readiness. It updates as your data changes.</p>
-              <button style={FR_BTN} onClick={() => setFirstRunStep(2)}>Next</button>
-            </div>
-          )}
-
-          {/* ── Step 2: What's Happening (AI Analysis) ─────────── */}
-          {firstRunStep === 2 && (
-            <div style={FR_CARD}>
-              <p style={FR_STEP_LABEL}>STEP 2 OF 7 &middot; AI ANALYSIS</p>
-              <h2 style={FR_HEADING}>What&rsquo;s Happening</h2>
-              <p style={FR_BODY}>StratiFi uses AI to analyze your full financial picture and explain it in plain English. No jargon. Just the facts about your money — where it comes from, where it goes, and what it means.</p>
-              <div style={FR_PREVIEW}>
-                <p style={FR_PREVIEW_TEXT}>&ldquo;You have positive cash flow of $1,000/month with strong emergency fund coverage...&rdquo;</p>
-              </div>
-              <p style={FR_CAPTION}>This section updates automatically as your data changes.</p>
-              <button style={FR_BTN} onClick={() => setFirstRunStep(3)}>Next</button>
-              <button style={FR_BTN_GHOST} onClick={() => setFirstRunStep(1)}>Back</button>
-            </div>
-          )}
-
-          {/* ── Step 3: What's Wrong (Problems) ───────────────── */}
-          {firstRunStep === 3 && (
-            <div style={FR_CARD}>
-              <p style={FR_STEP_LABEL}>STEP 3 OF 7 &middot; PROBLEMS DETECTED</p>
-              <h2 style={FR_HEADING}>What&rsquo;s Wrong</h2>
-              <p style={FR_BODY}>We scan for spending patterns, waste, and financial blind spots you might miss. Each problem shows exactly how much it costs you.</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', margin: '1rem 0' }}>
-                {(recommendations.length > 0 ? recommendations.slice(0, 2) : [
-                  { id: 'ex1', title: 'Unused subscription detected', explanation: '$55/mo going to a service with no recent activity' },
-                  { id: 'ex2', title: 'Dining spending 42% above average', explanation: 'You spent $210 on restaurants — your 3-month average is $148' },
-                ]).map((rec, i) => (
-                  <div key={rec.id} style={FR_ISSUE}>
-                    <span style={FR_ISSUE_NUM}>{i + 1}</span>
-                    <div>
-                      <p style={FR_ISSUE_TITLE}>{rec.title}</p>
-                      <p style={FR_ISSUE_DESC}>{rec.explanation}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button style={FR_BTN} onClick={() => setFirstRunStep(4)}>Next</button>
-              <button style={FR_BTN_GHOST} onClick={() => setFirstRunStep(2)}>Back</button>
-            </div>
-          )}
-
-          {/* ── Step 4: Fix This (Actions) ─────────────────────── */}
-          {firstRunStep === 4 && (
-            <div style={FR_CARD}>
-              <p style={FR_STEP_LABEL}>STEP 4 OF 7 &middot; ACTIONS</p>
-              <h2 style={FR_HEADING}>Fix This</h2>
-              <p style={FR_BODY}>Every problem comes with a specific action. Not &ldquo;save more&rdquo; — instead: &ldquo;Cancel Adobe CC at adobe.com/account. Save $55/month.&rdquo; Each action includes a dollar amount and a timeframe.</p>
-              <div style={{ ...FR_PREVIEW, background: '#f0fdf4', borderColor: '#bbf7d0' }}>
-                <p style={{ ...FR_PREVIEW_TEXT, color: '#059669' }}>&ldquo;Cancel Adobe CC subscription. Save $54.99/month ($660/year). Do this today.&rdquo;</p>
-              </div>
-              <p style={FR_CAPTION}>Actions are ranked by impact — highest savings first.</p>
-              <button style={FR_BTN} onClick={() => setFirstRunStep(5)}>Next</button>
-              <button style={FR_BTN_GHOST} onClick={() => setFirstRunStep(3)}>Back</button>
-            </div>
-          )}
-
-          {/* ── Step 5: Expenses Tab ───────────────────────────── */}
-          {firstRunStep === 5 && (
-            <div style={FR_CARD}>
-              <p style={FR_STEP_LABEL}>STEP 5 OF 7 &middot; EXPENSES</p>
-              <h2 style={FR_HEADING}>Spending Breakdown</h2>
-              <p style={FR_BODY}>See exactly where your money goes — broken down by category with a visual chart. Tap any slice to see the details. Subscriptions and money leaks are tracked separately so nothing slips through.</p>
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', margin: '1rem 0' }}>
-                {['Food', 'Bills', 'Shopping', 'Transport', 'Subscriptions'].map(c => (
-                  <span key={c} style={{ background: '#e8f7f7', border: '1px solid #b0dcd8', borderRadius: 6, padding: '0.3rem 0.6rem', fontSize: '0.78rem', color: '#1e3166', fontWeight: 600 }}>{c}</span>
-                ))}
-              </div>
-              <p style={FR_CAPTION}>Find this in the Expenses tab at the bottom.</p>
-              <button style={FR_BTN} onClick={() => setFirstRunStep(6)}>Next</button>
-              <button style={FR_BTN_GHOST} onClick={() => setFirstRunStep(4)}>Back</button>
-            </div>
-          )}
-
-          {/* ── Step 6: Alerts Tab ─────────────────────────────── */}
-          {firstRunStep === 6 && (
-            <div style={FR_CARD}>
-              <p style={FR_STEP_LABEL}>STEP 6 OF 7 &middot; ALERTS</p>
-              <h2 style={FR_HEADING}>Real-Time Monitoring</h2>
-              <p style={FR_BODY}>StratiFi watches your finances 24/7 and alerts you when something needs attention: spending spikes, upcoming bills, price increases, and unusual charges. You act before problems land.</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', margin: '1rem 0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span style={{ color: '#f59e0b' }}>&#9679;</span><span style={{ fontSize: '0.82rem', color: '#1e3166' }}>Spending spike detected</span></div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span style={{ color: '#3b82f6' }}>&#9679;</span><span style={{ fontSize: '0.82rem', color: '#1e3166' }}>Bill due in 3 days</span></div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><span style={{ color: '#ef4444' }}>&#9679;</span><span style={{ fontSize: '0.82rem', color: '#1e3166' }}>Unusual charge flagged</span></div>
-              </div>
-              <p style={FR_CAPTION}>Find this in the Alerts tab at the bottom.</p>
-              <button style={FR_BTN} onClick={() => setFirstRunStep(7)}>Next</button>
-              <button style={FR_BTN_GHOST} onClick={() => setFirstRunStep(5)}>Back</button>
-            </div>
-          )}
-
-          {/* ── Step 7: Allocation + Launch ─────────────────────── */}
-          {firstRunStep === 7 && (
-            <div style={FR_CARD}>
-              <p style={FR_STEP_LABEL}>STEP 7 OF 7 &middot; ALLOCATION</p>
-              <h2 style={FR_HEADING}>Where Your Money Should Be</h2>
-              <p style={FR_BODY}>See your net worth, how it is distributed across savings, retirement, and debt — and where it should be. Adjust the split between savings and debt payoff:</p>
-              {allocation && (
-                <div style={{ margin: '1rem 0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: '#5b7a99', marginBottom: '0.5rem' }}>
-                    <span>Savings: {firstRunSlider}%</span>
-                    <span>Debt: {100 - firstRunSlider}%</span>
-                  </div>
-                  <input type="range" min={10} max={90} value={firstRunSlider} onChange={e => setFirstRunSlider(Number(e.target.value))}
-                    style={{ width: '100%', accentColor: '#2ab9b0' }} />
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                    <div style={FR_ALLOC_BOX}>
-                      <span style={FR_ALLOC_LABEL}>Savings</span>
-                      <span style={FR_ALLOC_VAL}>{fmt((allocation.monthly_income - allocation.monthly_expenses) * firstRunSlider / 100)}/mo</span>
-                    </div>
-                    <div style={FR_ALLOC_BOX}>
-                      <span style={FR_ALLOC_LABEL}>Debt</span>
-                      <span style={FR_ALLOC_VAL}>{fmt((allocation.monthly_income - allocation.monthly_expenses) * (100 - firstRunSlider) / 100)}/mo</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <button style={FR_BTN} onClick={() => {
-                localStorage.setItem('stratifi_onboarding_done', 'true')
-                setFirstRunStep(0)
-              }}>Launch Control Panel</button>
-              <button style={FR_BTN_GHOST} onClick={() => setFirstRunStep(6)}>Back</button>
-            </div>
-          )}
-
-          {/* Step indicator */}
-          <div style={{ display: 'flex', gap: '0.4rem', marginTop: '1.5rem' }}>
-            {[1,2,3,4,5,6,7].map(s => (
-              <div key={s} style={{ width: 8, height: 8, borderRadius: '50%', background: s <= firstRunStep ? '#2ab9b0' : '#d1d5db' }} />
-            ))}
-          </div>
-        </div>
       ) : (
         <>
       <div style={styles.header}>
@@ -835,7 +705,7 @@ export default function Dashboard() {
 
         {/* ── Hero ──────────────────────────────────────────────────────── */}
         <h1 style={HERO_HEADLINE}>{firstName ? `Hello, ${firstName}` : 'Know exactly what you can spend today'}</h1>
-        <p style={HERO_SUB}>Your financial operating system.</p>
+        <p style={HERO_SUB}>No guesswork. No budgeting. Just decisions.</p>
 
         {!canAccessPro && (
           <button style={HERO_CTA} onClick={() => handleUpgrade()} disabled={upgrading}>
@@ -868,6 +738,18 @@ export default function Dashboard() {
           {!isMobile && <span style={{ marginLeft: '0.35rem' }}>Share</span>}
         </button>
 
+        {(
+          <button
+            style={activeTab === 'settings' ? styles.gearBtnActive : styles.gearBtn}
+            onClick={() => setActiveTab(activeTab === 'settings' ? 'overview' : 'settings')}
+            title="Settings"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+        )}
         {isPro && !isDemo && (
           <span style={styles.proBadge}>Pro</span>
         )}
@@ -932,11 +814,13 @@ export default function Dashboard() {
       {isDemo && (
         <div style={DEMO_BANNER}>
           <div style={DEMO_BANNER_TEXT}>
-            <strong>Simulation Mode</strong> &mdash; You&rsquo;re viewing simulated data. Ready for real numbers?
+            <strong>Demo Mode</strong> &mdash; You&rsquo;re viewing simulated financial data.
           </div>
           <div style={DEMO_BANNER_ACTIONS}>
-            <a href="/onboarding" style={DEMO_BANNER_CTA}>Enter Manually</a>
-            <a href="/transactions" style={DEMO_BANNER_LINK}>Upload CSV</a>
+            <a href="/transactions" style={DEMO_BANNER_CTA}>Upload Transactions</a>
+            <button style={DEMO_BANNER_LINK} onClick={() => { setActiveTab('settings'); handleConnectBank() }}>
+              Connect Bank
+            </button>
           </div>
         </div>
       )}
@@ -1353,79 +1237,18 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* ── AI Analysis ──────────────────────────────────────────────────── */}
-      {aiLoading && (
-        <section style={styles.section} className="pwa-section">
-          <h2 style={styles.heading}>Analyzing your finances...</h2>
-          <div className="skeleton" style={{ height: 80, marginBottom: '0.5rem' }} />
-          <div className="skeleton" style={{ height: 60 }} />
-        </section>
-      )}
-      {aiAnalysis && !aiLoading && (
-        <section style={styles.section} className="pwa-section">
-          <h2 style={styles.heading}>What&rsquo;s Happening</h2>
-          <p style={{ fontSize: '0.88rem', color: '#1e3166', lineHeight: 1.6, margin: '0 0 1rem' }}>{aiAnalysis.situation.summary}</p>
-          {scoreData && (
-            <p style={{ fontSize: '0.82rem', color: '#5b7a99', lineHeight: 1.5, margin: '0 0 1rem', background: '#f0f9fb', border: '1px solid #cce6ea', borderRadius: 8, padding: '0.65rem 0.85rem' }}>
-              {aiAnalysis.situation.score_explanation}
-            </p>
-          )}
-          {aiAnalysis.situation.key_metrics.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {aiAnalysis.situation.key_metrics.map((m, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0.4rem 0', borderBottom: '1px solid #f0f0f0', flexWrap: 'wrap', gap: '0.25rem' }}>
-                  <span style={{ fontSize: '0.82rem', color: '#5b7a99', fontWeight: 600 }}>{m.label}: <strong style={{ color: '#1e3166' }}>{m.value}</strong></span>
-                  <span style={{ fontSize: '0.75rem', color: '#8aaabb' }}>{m.explanation}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {aiAnalysis && aiAnalysis.problems.length > 0 && !aiLoading && (
-        <section style={styles.section} className="pwa-section">
-          <h2 style={styles.heading}>What&rsquo;s Wrong</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-            {aiAnalysis.problems.map((p, i) => (
-              <div key={i} style={{ background: p.severity === 'high' ? '#fef2f2' : p.severity === 'medium' ? '#fff8f0' : '#f0f9fb', border: `1px solid ${p.severity === 'high' ? '#fca5a5' : p.severity === 'medium' ? '#fde8d0' : '#cce6ea'}`, borderRadius: 10, padding: '0.75rem 1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1e3166' }}>{p.title}</span>
-                  {p.monthly_impact != null && <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#dc2626' }}>{fmt(p.monthly_impact)}/mo</span>}
-                </div>
-                <p style={{ margin: 0, fontSize: '0.82rem', color: '#374151', lineHeight: 1.5 }}>{p.detail}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {aiAnalysis && aiAnalysis.actions.length > 0 && !aiLoading && (
-        <section style={styles.section} className="pwa-section">
-          <h2 style={styles.heading}>What To Do Next</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-            {aiAnalysis.actions.map((a, i) => (
-              <div key={i} style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '0.75rem 1rem' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: '50%', background: '#059669', color: '#fff', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>{a.priority}</span>
-                  <div>
-                    <p style={{ margin: '0 0 0.2rem', fontWeight: 700, fontSize: '0.88rem', color: '#1e3166' }}>{a.instruction}</p>
-                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                      {a.expected_savings != null && <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600 }}>Save {fmt(a.expected_savings)}/mo</span>}
-                      {a.expected_score_impact && <span style={{ fontSize: '0.75rem', color: '#2ab9b0', fontWeight: 600 }}>{a.expected_score_impact}</span>}
-                      <span style={{ fontSize: '0.75rem', color: '#8aaabb' }}>{a.timeframe}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p style={{ margin: '0.75rem 0 0', fontSize: '0.72rem', color: '#9ca3af', lineHeight: 1.5 }}>{aiAnalysis.disclaimer}</p>
-        </section>
+      {/* ── Proof label ─────────────────────────────────────────────── */}
+      {hasData ? (
+        <p style={PROOF_LABEL}>{isDemo ? 'Sample data \u2014 connect your accounts to personalize' : 'Your plan, in real time'}</p>
+      ) : (
+        <div style={EMPTY_SETUP}>
+          <p style={EMPTY_SETUP_TEXT}>Add your balance, income, and expenses to see your plan.</p>
+          <a href="/transactions" style={EMPTY_SETUP_CTA}>Upload transactions</a>
+        </div>
       )}
 
       <section style={styles.section} className="pwa-section">
-        <h2 style={styles.heading}>Intelligence</h2>
+        <h2 style={styles.heading}>Insights</h2>
         {sourceLabel && <p style={SOURCE_NOTE}>{sourceLabel}</p>}
         {insights.length === 0
           ? <p style={styles.empty}>{hasData ? 'Not enough data for insights yet. Upload more transactions to unlock them.' : 'Connect a bank or upload transactions to see insights.'}</p>
@@ -1471,10 +1294,10 @@ export default function Dashboard() {
         }
       </section>
 
-      {/* ── Cash Flow ────────────────────────────────────────────────────── */}
+      {/* ── Cashflow ─────────────────────────────────────────────────────── */}
       <section id="section-cashflow" style={styles.section} className="pwa-section">
         <h2 style={styles.heading}>
-          Cash Flow
+          Cashflow
           {cashflow && cashflow.by_month.length > 0 && (
             <span style={DATA_THROUGH_LABEL}>
               through {cashflow.by_month[cashflow.by_month.length - 1].month}
@@ -1522,7 +1345,7 @@ export default function Dashboard() {
       {recommendations.length > 0 && (!isMobile || activeTab === 'overview') && (
       <section style={styles.section} className="pwa-section">
         <h2 style={styles.heading}>
-          Fix This
+          Top Actions
           {paywallEnabled && !canAccessPro && <span style={styles.proLabel}>Pro</span>}
         </h2>
         <p style={SOURCE_NOTE}>
@@ -1564,10 +1387,43 @@ export default function Dashboard() {
       </section>
       )}
 
+      {/* ── Explanation block ──────────────────────────────────────────── */}
+      <div style={EXPLAIN_BLOCK}>
+        <p style={EXPLAIN_LINE}>Most apps track what you <em>spent</em>.</p>
+        <p style={EXPLAIN_LINE}>StratiFi tells you what you <em>can</em> spend.</p>
+        <p style={EXPLAIN_DETAIL}>It builds a forward plan using your income, bills, and timing — so every decision is calculated.</p>
+      </div>
+
+      {/* ── Benefit strip ──────────────────────────────────────────────── */}
+      <div style={BENEFIT_STRIP}>
+        <div style={BENEFIT_CARD}>
+          <div style={BENEFIT_TITLE}>Clarity</div>
+          <div style={BENEFIT_DESC}>See your exact safe-to-spend number at any moment.</div>
+        </div>
+        <div style={BENEFIT_CARD}>
+          <div style={BENEFIT_TITLE}>Control</div>
+          <div style={BENEFIT_DESC}>Stay aligned with bills and avoid shortfalls.</div>
+        </div>
+        <div style={BENEFIT_CARD}>
+          <div style={BENEFIT_TITLE}>Foresight</div>
+          <div style={BENEFIT_DESC}>Know what happens before you spend.</div>
+        </div>
+      </div>
+
+      {/* ── CTA reinforcement (free users) ─────────────────────────────── */}
+      {!canAccessPro && (
+        <div style={CTA_REINFORCE}>
+          <p style={CTA_REINFORCE_TEXT}>Stop guessing. Start deciding.</p>
+          <button style={HERO_CTA} onClick={() => handleUpgrade()} disabled={upgrading}>
+            {upgrading ? 'Redirecting…' : 'Upgrade to Pro'}
+          </button>
+        </div>
+      )}
+
       {/* ── Forecast ─────────────────────────────────────────────────────── */}
       <section style={styles.section} className="pwa-section">
         <h2 style={styles.heading}>
-          Outcome Projection
+          30-Day Forecast
           {paywallEnabled && !canAccessPro && <span style={styles.proLabel}>Pro</span>}
         </h2>
         <p style={SOURCE_NOTE}>
@@ -1926,21 +1782,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── Account & Sign Out ──────────────────────────────────────────── */}
-      <section style={{ ...styles.section, textAlign: 'center' as const, marginTop: '1rem' }} className="pwa-section">
-        <a href="/onboarding" style={{ fontSize: '0.85rem', color: '#2ab9b0', fontWeight: 600, textDecoration: 'none' }}>Enter Financial Data</a>
-        <span style={{ margin: '0 0.75rem', color: '#d1d5db' }}>|</span>
-        <a href="/transactions" style={{ fontSize: '0.85rem', color: '#2ab9b0', fontWeight: 600, textDecoration: 'none' }}>Upload CSV</a>
-        <div style={{ marginTop: '1rem' }}>
-          <button
-            style={{ background: 'none', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: 8, padding: '0.5rem 1.5rem', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}
-            onClick={() => signOut({ redirectUrl: '/sign-in' })}
-          >
-            Sign Out
-          </button>
-        </div>
-      </section>
-
       {/* ── Support chat ─────────────────────────────────────────────────── */}
       <SupportPanel userPlan={isPro ? 'pro' : 'free'} paywallEnabled={paywallEnabled} />
 
@@ -2289,7 +2130,7 @@ const UPGRADE_CARD_STYLE: React.CSSProperties = {
   background:   'linear-gradient(160deg, #edfafa 0%, #f0f4ff 100%)',
   border:       '1.5px solid #b2e8e5',
   borderRadius: 14,
-  padding:      'clamp(0.85rem, 3vw, 1.2rem) clamp(0.75rem, 3vw, 1rem) clamp(0.75rem, 3vw, 1rem)',
+  padding:      '1.2rem 1rem 1rem',
   overflowWrap: 'break-word',
   boxSizing:    'border-box',
   maxWidth:     '100%',
@@ -2522,8 +2363,8 @@ const SNAPSHOT_BTN_OUTLINE: React.CSSProperties = {
 // ─── Financial Health Score ───────────────────────────────────────────────────
 
 const SCORE_SECTION: React.CSSProperties = {
-  background: '#ffffff', borderRadius: 12, padding: 'clamp(1rem, 3vw, 1.5rem)',
-  marginBottom: '1rem',
+  background: '#ffffff', borderRadius: 12, padding: '1.5rem',
+  marginBottom: '1.25rem',
   boxShadow: '0 1px 3px rgba(30,49,102,0.07), 0 1px 2px rgba(30,49,102,0.04)',
   border: '1px solid #daeef2',
 }
@@ -2597,7 +2438,7 @@ const SCORE_FACTOR_VAL: React.CSSProperties = {
 // ─── Allocation tab ──────────────────────────────────────────────────────────
 
 const ALLOC_NET_WORTH: React.CSSProperties = {
-  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '0.25rem',
+  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
   padding: '0.75rem 0', borderBottom: '1px solid #e5e7eb', marginBottom: '1.25rem',
 }
 const ALLOC_NW_LABEL: React.CSSProperties = {
@@ -2639,79 +2480,101 @@ const ALLOC_GUIDANCE: React.CSSProperties = {
   background: '#f0f9fb', border: '1px solid #cce6ea', borderRadius: 8, padding: '0.75rem 1rem',
 }
 
-// ─── First-run guided experience ─────────────────────────────────────────────
+// ─── Guided Tour ─────────────────────────────────────────────────────────────
 
-const FR_CONTAINER: React.CSSProperties = {
-  minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center',
-  justifyContent: 'center', padding: '2rem 1.5rem', background: '#f0f9fb', textAlign: 'center',
-}
-const FR_CARD: React.CSSProperties = {
-  background: '#fff', borderRadius: 16, padding: '2rem 1.5rem', maxWidth: 420, width: '100%',
-  boxShadow: '0 4px 24px rgba(30,49,102,0.08)', border: '1px solid #daeef2',
-}
-const FR_STEP_LABEL: React.CSSProperties = {
-  fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', color: '#2ab9b0',
-  textTransform: 'uppercase', marginBottom: '0.5rem',
-}
-const FR_HEADING: React.CSSProperties = {
-  fontSize: 'clamp(1.15rem, 4vw, 1.4rem)', fontWeight: 800, color: '#1e3166', margin: '0 0 0.5rem',
-}
-const FR_LABEL: React.CSSProperties = {
-  fontSize: '1rem', fontWeight: 700, color: '#1e3166', margin: '0 0 0.75rem',
-}
-const FR_BODY: React.CSSProperties = {
-  fontSize: '0.85rem', color: '#5b7a99', lineHeight: 1.6, margin: '0 0 1.25rem',
-}
-const FR_BTN: React.CSSProperties = {
-  display: 'block', width: '100%', padding: '0.75rem', background: 'linear-gradient(135deg, #2ab9b0, #1e3166)',
-  color: '#fff', border: 'none', borderRadius: 10, fontSize: '0.92rem', fontWeight: 700, cursor: 'pointer',
-}
-const FR_BTN_GHOST: React.CSSProperties = {
-  display: 'block', width: '100%', padding: '0.5rem', background: 'none',
-  color: '#8aaabb', border: 'none', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', marginTop: '0.5rem',
-}
-const FR_ISSUE: React.CSSProperties = {
-  display: 'flex', gap: '0.75rem', alignItems: 'flex-start', textAlign: 'left',
-  background: '#fff8f0', border: '1px solid #fde8d0', borderRadius: 10, padding: '0.75rem 1rem',
-}
-const FR_ISSUE_NUM: React.CSSProperties = {
-  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-  width: 24, height: 24, borderRadius: '50%', background: '#f59e0b', color: '#fff',
-  fontSize: '0.75rem', fontWeight: 700, flexShrink: 0,
-}
-const FR_ISSUE_TITLE: React.CSSProperties = {
-  fontSize: '0.88rem', fontWeight: 700, color: '#1e3166', margin: '0 0 0.15rem',
-}
-const FR_ISSUE_DESC: React.CSSProperties = {
-  fontSize: '0.78rem', color: '#6b7280', margin: 0, lineHeight: 1.4,
-}
-const FR_ALLOC_BOX: React.CSSProperties = {
-  flex: 1, background: '#f0f9fb', borderRadius: 8, padding: '0.6rem', textAlign: 'center',
-}
-const FR_ALLOC_LABEL: React.CSSProperties = {
-  display: 'block', fontSize: '0.72rem', color: '#5b7a99', fontWeight: 600, textTransform: 'uppercase',
-  letterSpacing: '0.05em', marginBottom: '0.2rem',
-}
-const FR_ALLOC_VAL: React.CSSProperties = {
-  display: 'block', fontSize: '1.05rem', fontWeight: 700, color: '#1e3166',
-}
-const FR_READY_ROW: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.88rem', color: '#1e3166',
-  textAlign: 'left',
-}
-const FR_CHECK: React.CSSProperties = {
-  color: '#059669', fontWeight: 700, fontSize: '1rem',
+const TOUR_STEPS = [
+  {
+    icon: '\uD83C\uDFAF',
+    title: 'Your Financial Health Score',
+    description: 'A 0\u2013100 score based on 6 measurable factors: emergency fund, debt ratio, cash flow, savings rate, debt load, and retirement readiness. It updates every time your data changes.',
+  },
+  {
+    icon: '\u26A1',
+    title: 'Top 3 Actions',
+    description: 'The 3 highest-impact things you can do right now to improve your finances. Each action is specific, quantified, and ranked by urgency \u2014 not generic advice.',
+  },
+  {
+    icon: '\uD83D\uDCC8',
+    title: 'Cashflow & Insights',
+    description: 'See your income vs expenses by month, spot trends, and get data-driven insights about your spending patterns \u2014 like which day you spend the most.',
+  },
+  {
+    icon: '\uD83D\uDD14',
+    title: 'Alerts',
+    description: 'Get notified about spending spikes, upcoming bills, new subscriptions, price increases, and low balance warnings \u2014 before they become problems.',
+  },
+  {
+    icon: '\uD83D\uDCB3',
+    title: 'Expenses & Subscriptions',
+    description: 'See exactly where your money goes by category. Detect recurring subscriptions, flag unused ones, and find waste you can cut immediately.',
+  },
+  {
+    icon: '\uD83C\uDFE6',
+    title: 'Allocation',
+    description: 'See how your money is distributed across emergency fund, retirement, and debt \u2014 with clear targets showing where you stand and what to prioritize.',
+  },
+  {
+    icon: '\uD83D\uDE80',
+    title: 'Ready to go!',
+    description: 'Upload your bank transactions or connect your accounts to replace the demo data with your real financial picture. Your score and actions will update automatically.',
+  },
+]
+
+const TOUR_OVERLAY: React.CSSProperties = {
+  position: 'fixed', inset: 0, zIndex: 9999,
+  background: 'rgba(0,0,0,0.6)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  padding: '1rem',
+  backdropFilter: 'blur(4px)',
 }
 
-const FR_PREVIEW: React.CSSProperties = {
-  background: '#f0f9fb', border: '1px solid #cce6ea', borderRadius: 10,
-  padding: '0.85rem 1rem', margin: '1rem 0',
+const TOUR_CARD: React.CSSProperties = {
+  background: '#fff', borderRadius: 16, padding: '2rem 1.5rem',
+  maxWidth: 400, width: '100%', textAlign: 'center',
+  boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+  animation: 'fadeIn 0.3s ease-out',
 }
-const FR_PREVIEW_TEXT: React.CSSProperties = {
-  margin: 0, fontSize: '0.85rem', color: '#1e3166', lineHeight: 1.5, fontStyle: 'italic',
+
+const TOUR_STEP_INDICATOR: React.CSSProperties = {
+  display: 'flex', justifyContent: 'center', gap: '0.4rem', marginBottom: '1.25rem',
 }
-const FR_CAPTION: React.CSSProperties = {
-  fontSize: '0.75rem', color: '#8aaabb', margin: '0 0 1.25rem', textAlign: 'center',
+
+const TOUR_DOT: React.CSSProperties = {
+  width: 8, height: 8, borderRadius: '50%', transition: 'background 0.2s',
+}
+
+const TOUR_ICON: React.CSSProperties = {
+  fontSize: '2.5rem', marginBottom: '0.75rem',
+}
+
+const TOUR_TITLE: React.CSSProperties = {
+  fontSize: '1.15rem', fontWeight: 700, color: '#1e3166',
+  margin: '0 0 0.5rem',
+}
+
+const TOUR_DESC: React.CSSProperties = {
+  fontSize: '0.88rem', color: '#5b7a99', lineHeight: 1.6,
+  margin: '0 0 1.5rem',
+}
+
+const TOUR_ACTIONS: React.CSSProperties = {
+  display: 'flex', gap: '0.75rem', justifyContent: 'center',
+}
+
+const TOUR_SKIP_BTN: React.CSSProperties = {
+  background: 'none', border: '1px solid #d1d5db', color: '#6b7280',
+  borderRadius: 8, padding: '0.55rem 1.25rem',
+  fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer',
+}
+
+const TOUR_NEXT_BTN: React.CSSProperties = {
+  background: 'linear-gradient(135deg, #2ab9b0, #1e3166)', color: '#fff',
+  border: 'none', borderRadius: 8, padding: '0.55rem 1.75rem',
+  fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+}
+
+const TOUR_COUNTER: React.CSSProperties = {
+  fontSize: '0.72rem', color: '#9ca3af', marginTop: '1rem', margin: '1rem 0 0',
 }
 
 const ACTION_NUMBER: React.CSSProperties = {
@@ -2773,7 +2636,6 @@ const DEMO_BANNER_LINK: React.CSSProperties = {
   padding:        '0.4rem 0.9rem',
   fontSize:       '0.82rem',
   fontWeight:     700,
-  textDecoration: 'none',
   cursor:         'pointer',
 }
 
@@ -3080,20 +2942,20 @@ const TD_BASE: React.CSSProperties = {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page:        { maxWidth: 900, margin: '0 auto', padding: 'clamp(1rem, 3vw, 2.5rem) clamp(0.75rem, 3vw, 1.5rem)', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: '#1e3166', background: '#f0f9fb', minHeight: '100vh', overflowX: 'clip' as const, boxSizing: 'border-box' as const, width: '100%' } as React.CSSProperties,
+  page:        { maxWidth: 900, margin: '0 auto', padding: '2.5rem 1.5rem', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', color: '#1e3166', background: '#f0f9fb', minHeight: '100vh', overflowX: 'clip' as const, boxSizing: 'border-box' as const, width: '100%' } as React.CSSProperties,
   header:      { marginBottom: '1.75rem', position: 'relative' as const },
-  logo:        { width: 'min(200px, 50vw)', height: 'auto', display: 'block', marginBottom: '-2rem', mixBlendMode: 'multiply', cursor: 'pointer' } as React.CSSProperties,
+  logo:        { width: 'min(240px, 60vw)', height: 'auto', display: 'block', marginBottom: '-3rem', mixBlendMode: 'multiply', cursor: 'pointer' } as React.CSSProperties,
   subtitle:    { fontSize: 'clamp(0.78rem, 3vw, 0.9rem)', color: '#1e3166', margin: 0, fontWeight: 900 } as React.CSSProperties,
-  section:     { background: '#ffffff', borderRadius: 12, padding: 'clamp(1rem, 3vw, 1.5rem)', marginBottom: '1rem', boxShadow: '0 1px 3px rgba(30,49,102,0.07), 0 1px 2px rgba(30,49,102,0.04)', border: '1px solid #daeef2', overflowWrap: 'break-word' as const },
+  section:     { background: '#ffffff', borderRadius: 12, padding: '1.5rem', marginBottom: '1.25rem', boxShadow: '0 1px 3px rgba(30,49,102,0.07), 0 1px 2px rgba(30,49,102,0.04)', border: '1px solid #daeef2', overflowWrap: 'break-word' as const },
   heading:     { fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.75rem', color: '#2ab9b0', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' as const, gap: '0.35rem' },
   empty:       { color: '#8aaabb', fontSize: '0.9rem' },
   list:        { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.6rem' },
   insightItem: { background: '#e8f7f7', border: '1px solid #b0dcd8', borderRadius: 8, padding: '0.7rem 1rem', fontSize: '0.92rem', color: '#1e3166', lineHeight: 1.5 },
   insightCta:  { background: 'none', border: '1px solid #2ab9b0', color: '#2ab9b0', borderRadius: 6, padding: '0.3rem 0.75rem', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' },
-  statRow:     { display: 'flex', gap: 'clamp(0.5rem, 2vw, 1rem)', marginBottom: '1rem', flexWrap: 'wrap' },
-  stat:        { flex: 1, minWidth: 'min(100px, 100%)' as string, background: '#f0f9fb', borderRadius: 10, padding: 'clamp(0.6rem, 2vw, 1rem) clamp(0.5rem, 2vw, 1.1rem)', border: '1px solid #cce6ea' },
+  statRow:     { display: 'flex', gap: '1rem', marginBottom: '1.25rem', flexWrap: 'wrap' },
+  stat:        { flex: 1, minWidth: 'min(140px, 100%)' as string, background: '#f0f9fb', borderRadius: 10, padding: '1rem 1.1rem', border: '1px solid #cce6ea' },
   statLabel:   { fontSize: '0.72rem', color: '#5b7a99', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.07em', fontWeight: 600 },
-  statValue:   { fontSize: 'clamp(1.1rem, 4vw, 1.45rem)', fontWeight: 700, letterSpacing: '-0.02em' },
+  statValue:   { fontSize: '1.45rem', fontWeight: 700, letterSpacing: '-0.02em' },
   table:       { width: '100%', borderCollapse: 'collapse' },
   th:          { textAlign: 'left', padding: '0.5rem 0.75rem', background: '#f0f9fb', borderBottom: '1px solid #cce6ea', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#5b7a99' },
   td:          TD_BASE,
