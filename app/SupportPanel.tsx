@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SupportAIResponse, SupportCategory } from '@/app/api/support/chat/route'
 import { track, EVENTS }                           from '@/lib/telemetry'
-import type { UserPlan }                           from '@/lib/telemetry'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,13 +18,7 @@ interface SupportMessage {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function SupportPanel({
-  userPlan        = 'free',
-  paywallEnabled  = false,
-}: {
-  userPlan?:       UserPlan
-  paywallEnabled?: boolean
-}) {
+export default function SupportPanel() {
   const [open, setOpen]               = useState(false)
   const [messages, setMessages]       = useState<SupportMessage[]>([INTRO_MSG])
   const [input, setInput]             = useState('')
@@ -55,9 +48,7 @@ export default function SupportPanel({
   // Shared payload fragment — keeps every track() call DRY
   function basePayload() {
     return {
-      user_plan:       userPlan,
-      paywall_enabled: paywallEnabled,
-      session_id:      sessionIdRef.current,
+      session_id: sessionIdRef.current,
     }
   }
 

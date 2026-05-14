@@ -16,12 +16,6 @@ export interface SupportAIResponse {
   confidence:     SupportConfidence
 }
 
-// ─── Rate limiting ────────────────────────────────────────────────────────────
-
-import { createRateLimiter } from '@/lib/utils/rate-limit'
-
-const chatLimiter = createRateLimiter('chat', 10, 60_000)
-
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 const VALID_CATEGORIES  = new Set<string>(['general', 'billing', 'technical', 'account', 'unknown'])
@@ -42,14 +36,6 @@ function sanitise(raw: Partial<SupportAIResponse>): SupportAIResponse {
 export async function POST(req: Request): Promise<Response> {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  try {
-    if (await chatLimiter.check(userId)) {
-      return NextResponse.json({ error: 'rate_limited' }, { status: 429 })
-    }
-  } catch {
-    // Redis unavailable — skip rate limiting
-  }
 
   const body = await req.json().catch(() => null)
   if (!body?.messages || !Array.isArray(body.messages) || body.messages.length === 0) {

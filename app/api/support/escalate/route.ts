@@ -2,12 +2,6 @@ import { auth, currentUser } from '@clerk/nextjs/server'
 import { NextResponse }       from 'next/server'
 import { logInteraction }     from '@/lib/support/log'
 
-// ─── Rate limiting ────────────────────────────────────────────────────────────
-
-import { createRateLimiter } from '@/lib/utils/rate-limit'
-
-const escalationLimiter = createRateLimiter('escalate', 3, 60 * 60 * 1000)  // 3 per hour
-
 // ─── Urgency detection ────────────────────────────────────────────────────────
 
 const HIGH_KEYWORDS   = ['urgent', 'emergency', 'locked out', 'fraud', 'stolen', 'unauthorized', 'data loss', 'charged twice', 'double charge', "can't access", 'cannot access', 'security']
@@ -54,10 +48,6 @@ async function generateSummary(transcript: string, apiKey: string): Promise<stri
 export async function POST(req: Request): Promise<Response> {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  if (await escalationLimiter.check(userId)) {
-    return NextResponse.json({ error: 'escalation_limited' }, { status: 429 })
-  }
 
   const body = await req.json().catch(() => null)
   if (!body?.transcript || typeof body.transcript !== 'string') {

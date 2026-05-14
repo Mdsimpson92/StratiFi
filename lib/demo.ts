@@ -24,8 +24,7 @@ import { queryOne }     from '@/lib/db/client'
  * True when the user has no real financial data.
  * A user exits demo mode when they either:
  *   - Upload transactions with valid dates, OR
- *   - Link a bank account via Plaid, OR
- *   - Complete their financial profile manually
+ *   - Link a bank account via Plaid
  */
 export async function isDemoUser(userId: string): Promise<boolean> {
   try {
@@ -33,7 +32,6 @@ export async function isDemoUser(userId: string): Promise<boolean> {
       `SELECT (
         EXISTS(SELECT 1 FROM transactions WHERE user_id = $1 AND date IS NOT NULL LIMIT 1)
         OR EXISTS(SELECT 1 FROM plaid_items WHERE user_id = $1 LIMIT 1)
-        OR EXISTS(SELECT 1 FROM profiles WHERE id = $1 LIMIT 1)
       ) AS has_real_data`,
       [userId]
     )

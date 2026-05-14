@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { saveProfile } from '@/lib/actions/profile'
 import type { ProfileData } from '@/lib/schemas/profile'
 
-const STEPS = 5
+const STEPS = 7
 
 const GOAL_OPTIONS: { value: ProfileData['primary_goal']; label: string }[] = [
   { value: 'emergency_fund', label: 'Build an emergency fund' },
@@ -151,14 +151,60 @@ function StepNav({
 
 // ─── Steps ────────────────────────────────────────────────────────────────────
 
+function StepWelcome({ onNext }: { onNext: () => void }) {
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <div className="text-4xl mb-3">👋</div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Welcome to StratiFi</h2>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          We&apos;re going to ask a few quick questions to personalize your dashboard. It takes about 90 seconds, and every answer makes your insights sharper. Nothing is shared, nothing is sold.
+        </p>
+      </div>
+      <ul className="text-sm text-gray-700 space-y-2 bg-gray-50 rounded-md p-4">
+        <li className="flex gap-2"><span className="text-gray-900 font-bold">1.</span> A snapshot of your money — income, debt, savings, goals</li>
+        <li className="flex gap-2"><span className="text-gray-900 font-bold">2.</span> An instant 0–100 Financial Health Score</li>
+        <li className="flex gap-2"><span className="text-gray-900 font-bold">3.</span> A ranked action plan based on what you told us</li>
+      </ul>
+      <StepNav onNext={onNext} isFirst />
+    </div>
+  )
+}
+
+function StepPreview({ onBack, onSubmit, loading }: { onBack: () => void; onSubmit: () => void; loading: boolean }) {
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <div className="text-4xl mb-3">🚀</div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">You&apos;re all set</h2>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          Here&apos;s what you&apos;ll see on the next screen. Each section is built from what you just told us.
+        </p>
+      </div>
+      <ul className="text-sm text-gray-700 space-y-3 bg-gray-50 rounded-md p-4">
+        <li><strong>Financial Health Score</strong> — a 0–100 read on where you stand, with the factors driving it.</li>
+        <li><strong>Top Actions</strong> — the highest-impact moves to make next, ranked by urgency.</li>
+        <li><strong>Cashflow & Forecast</strong> — what came in, what went out, and what&apos;s coming.</li>
+        <li><strong>Alerts</strong> — early warnings on spending spikes, missed bills, surprise charges.</li>
+        <li><strong>Expenses & Subscriptions</strong> — where your money actually goes; recurring charges to trim.</li>
+        <li><strong>Allocation</strong> — how your money splits across emergency fund, retirement, and debt.</li>
+      </ul>
+      <p className="text-xs text-gray-500 text-center">A guided tour will walk you through everything once you land on the dashboard.</p>
+      <StepNav onBack={onBack} onSubmit={onSubmit} loading={loading} isLast />
+    </div>
+  )
+}
+
 function Step1({
   data,
   onChange,
   onNext,
+  onBack,
 }: {
   data: FormData
   onChange: (f: Partial<ProfileData>) => void
   onNext: () => void
+  onBack: () => void
 }) {
   return (
     <div className="space-y-4">
@@ -169,7 +215,7 @@ function Step1({
         value={data.household_size}
         onChange={v => onChange({ household_size: v })}
       />
-      <StepNav onNext={onNext} isFirst />
+      <StepNav onBack={onBack} onNext={onNext} />
     </div>
   )
 }
@@ -270,17 +316,13 @@ function Step4({
 function Step5({
   data,
   onChange,
+  onNext,
   onBack,
-  onSubmit,
-  loading,
-  error,
 }: {
   data: FormData
   onChange: (f: Partial<ProfileData>) => void
+  onNext: () => void
   onBack: () => void
-  onSubmit: () => void
-  loading: boolean
-  error: string | null
 }) {
   return (
     <div className="space-y-5">
@@ -306,8 +348,7 @@ function Step5({
         value={data.risk_tolerance}
         onChange={v => onChange({ risk_tolerance: v })}
       />
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <StepNav onBack={onBack} onSubmit={onSubmit} loading={loading} isLast />
+      <StepNav onBack={onBack} onNext={onNext} />
     </div>
   )
 }
@@ -360,20 +401,14 @@ export default function OnboardingPage() {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 sm:p-8">
-          {step === 1 && <Step1 data={data} onChange={update} onNext={next} />}
-          {step === 2 && <Step2 data={data} onChange={update} onNext={next} onBack={back} />}
-          {step === 3 && <Step3 data={data} onChange={update} onNext={next} onBack={back} />}
-          {step === 4 && <Step4 data={data} onChange={update} onNext={next} onBack={back} />}
-          {step === 5 && (
-            <Step5
-              data={data}
-              onChange={update}
-              onBack={back}
-              onSubmit={handleSubmit}
-              loading={loading}
-              error={error}
-            />
-          )}
+          {step === 1 && <StepWelcome onNext={next} />}
+          {step === 2 && <Step1 data={data} onChange={update} onNext={next} onBack={back} />}
+          {step === 3 && <Step2 data={data} onChange={update} onNext={next} onBack={back} />}
+          {step === 4 && <Step3 data={data} onChange={update} onNext={next} onBack={back} />}
+          {step === 5 && <Step4 data={data} onChange={update} onNext={next} onBack={back} />}
+          {step === 6 && <Step5 data={data} onChange={update} onNext={next} onBack={back} />}
+          {step === 7 && <StepPreview onBack={back} onSubmit={handleSubmit} loading={loading} />}
+          {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
         </div>
       </div>
     </div>

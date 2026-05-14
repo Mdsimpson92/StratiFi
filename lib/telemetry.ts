@@ -10,30 +10,16 @@
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
-export type UserPlan = 'free' | 'pro'
-
 export interface TelemetryEvent {
   event:            string
   timestamp:        string        // ISO 8601, UTC
-  user_plan:        UserPlan
-  paywall_enabled:  boolean
   source_surface?:  string        // which UI surface triggered the event
-  prompt_type?:     string        // which prompt variant (contextual, end_recs, …)
   [key: string]:    unknown       // allow arbitrary extra context per event
 }
 
 // ─── Named events ─────────────────────────────────────────────────────────────
 
 export const EVENTS = {
-  // ── Upgrade / paywall ──────────────────────────────────────────────────────
-  UPGRADE_CARD_VIEWED:            'upgrade_card_viewed',
-  UPGRADE_CTA_CLICKED:            'upgrade_cta_clicked',
-  LOCKED_FEATURE_INTERACTED:      'locked_feature_interacted',
-  BLOCKED_NOTIFICATION_ATTEMPT:   'blocked_notification_attempt',
-  RECOMMENDATIONS_TEASER_VIEWED:  'recommendations_teaser_viewed',
-  POST_CHECKOUT_RETURNED:         'post_checkout_returned',
-  PRO_STATE_CONFIRMED:            'pro_state_confirmed',
-
   // ── Support ────────────────────────────────────────────────────────────────
   // Fired when the support panel is opened for the first time in a session.
   SUPPORT_CHAT_STARTED:           'support_chat_started',
