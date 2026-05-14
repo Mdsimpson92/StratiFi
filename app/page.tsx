@@ -189,12 +189,11 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    // Intro plays every login — reinforces brand identity
+    // Intro plays every login — reinforces brand identity.
+    // We unmount on animationend rather than setTimeout so the JS clock
+    // can't race the CSS fade; the dashboard sits underneath the whole time,
+    // so when the intro opacity hits 0 the home page is already laid out.
     setShowIntro(true)
-    const timer = setTimeout(() => {
-      setShowIntro(false)
-    }, 3000)
-    return () => clearTimeout(timer)
   }, [])
 
   const onPlaidSuccess = useCallback(async (public_token: string, metadata: { institution?: { name?: string } | null }) => {
@@ -490,12 +489,17 @@ export default function Dashboard() {
         </div>
       )}
 
-      {showIntro ? (
-        <div style={styles.introScreen}>
+      {showIntro && (
+        <div
+          style={styles.introScreen}
+          onAnimationEnd={() => setShowIntro(false)}
+        >
           <img src="/stratifi-logo.png" alt="StratiFi" style={styles.introLogo} />
           <p style={styles.introTagline}>Where Strategy meets Finance.</p>
         </div>
-      ) : loading ? (
+      )}
+
+      {loading ? (
         <SkeletonDashboard />
       ) : error ? (
         <div style={styles.center}>{error}</div>
