@@ -28,6 +28,17 @@ const RISK_OPTIONS: { value: ProfileData['risk_tolerance']; label: string }[] = 
 
 type FormData = Partial<ProfileData>
 
+// ─── Why-this-matters callout ─────────────────────────────────────────────────
+
+function WhyBox({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="bg-teal-50 border-l-4 border-teal-600 rounded-md p-3 text-sm text-gray-700 leading-relaxed">
+      <p className="font-semibold text-teal-900 mb-1">Why this matters</p>
+      <p>{children}</p>
+    </div>
+  )
+}
+
 // ─── Number input ─────────────────────────────────────────────────────────────
 
 function NumberField({
@@ -209,6 +220,9 @@ function Step1({
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-gray-900">About you</h2>
+      <WhyBox>
+        Age sets the math. The same $500/month saved at 25 vs. 45 lands you in completely different places at retirement, and your plan should reflect which one you are. Household size sets your real emergency target: a solo earner needs roughly 3 months of expenses banked; a family of four needs 6+. Skip these and the plan I build is for the wrong life.
+      </WhyBox>
       <NumberField label="Age" value={data.age} onChange={v => onChange({ age: v })} />
       <NumberField
         label="Household size"
@@ -234,6 +248,9 @@ function Step2({
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-gray-900">Income & expenses</h2>
+      <WhyBox>
+        The gap between these two numbers is the only one that builds wealth. Debt-payoff speed, emergency-fund timeline, retirement trajectory — all of it sits downstream of that gap. Give me both and I&apos;ll tell you whether you&apos;re widening it or shrinking it, which expenses are eating the most return, and exactly how many dollars per month you can redirect without changing your life.
+      </WhyBox>
       <NumberField
         label="Annual income"
         value={data.annual_income}
@@ -265,6 +282,9 @@ function Step3({
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-gray-900">Debt</h2>
+      <WhyBox>
+        Every $1 servicing old debt is $1 not compounding for you. Total debt + monthly payment lets me calculate the real interest tax you&apos;re paying each year and rank your loans by which one costs the most per dollar killed. You&apos;ll see the exact payoff date for each balance — and whether attacking debt or building savings first puts more in your pocket over the next 12 months.
+      </WhyBox>
       <NumberField
         label="Total debt outstanding"
         value={data.total_debt}
@@ -296,6 +316,9 @@ function Step4({
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold text-gray-900">Savings & assets</h2>
+      <WhyBox>
+        Liquid savings is your shock absorber — without it, the next surprise lands on a credit card at 24% APR and erases months of progress. Retirement savings is doing silent work in the background; if you&apos;re behind for your age, every month of delay costs more than the last. Give me these and I&apos;ll show you your runway in months, your retirement gap in dollars, and the single highest-leverage move you can make this week.
+      </WhyBox>
       <NumberField
         label="Liquid savings (checking/savings accounts)"
         value={data.liquid_savings}
@@ -327,6 +350,9 @@ function Step5({
   return (
     <div className="space-y-5">
       <h2 className="text-lg font-semibold text-gray-900">Your goals</h2>
+      <WhyBox>
+        A 2-year house fund and a 30-year retirement plan run on opposite playbooks. Goal + time horizon + risk tolerance tells me whether to push you toward liquidity or growth, whether to recommend a high-yield savings account or an index fund, and whether to warn you off moves that look smart but would make you sell at the worst possible moment.
+      </WhyBox>
       <RadioGroup
         label="Primary goal"
         name="primary_goal"
